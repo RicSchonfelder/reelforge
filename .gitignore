@@ -1,0 +1,31 @@
+# Dependências
+node_modules/
+
+# Dados locais (nunca subir)
+data/
+library/
+editor/
+creative-matrix/
+remix/
+models/
+bin/
+npm-cache/
+
+# Configuração com segredos
+.env
+.env.local
+
+# Documentação interna (fora do repositório público)
+docs-interna/
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs e artefatos
+*.log
+*.tmp
+*.corrupt-*
+dashboard-output.log
+dashboard-error.log

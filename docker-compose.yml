@@ -1,0 +1,23 @@
+# Reelforge — deploy no servidor (Ubuntu)
+# Uso: docker compose up -d
+services:
+  reelforge:
+    build: .
+    container_name: reelforge
+    restart: unless-stopped
+    ports:
+      - "4170:4170"
+    env_file:
+      - .env
+    environment:
+      # Painel acessível na rede do servidor; .env define DASHBOARD_HOST
+      DASHBOARD_HOST: 0.0.0.0
+      REELFORGE_DATA_DIR: /app/data
+    volumes:
+      - ./data:/app/data
+      - ./library:/app/library
+      - ./editor:/app/editor
+      - ./creative-matrix:/app/creative-matrix
+      - ./remix:/app/remix
+      - ./models:/app/models
+      - ./bin:/app/bin

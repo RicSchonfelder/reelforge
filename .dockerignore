@@ -1,0 +1,14 @@
+node_modules
+data
+library
+editor
+creative-matrix
+remix
+models
+bin
+docs-interna
+.env
+*.log
+*.tmp
+*.corrupt-*
+.git

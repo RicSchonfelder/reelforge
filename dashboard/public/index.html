@@ -1,0 +1,796 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#f7f1e8" />
+    <meta name="application-name" content="Reelforge" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Reelforge" />
+    <title>Reelforge</title>
+    <meta
+      name="description"
+      content="Central local para editar, agendar e acompanhar conteúdo no Instagram."
+    />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/icons/icon-180x180.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">V</div>
+          <div>
+            <strong>Reelforge</strong>
+            <span>Content Studio</span>
+          </div>
+        </div>
+        <nav aria-label="Navegação principal">
+          <button class="nav-item active" data-view="overview"><span>01</span>Visão geral</button>
+          <button class="nav-item" data-view="content"><span>02</span>Conteúdos</button>
+          <button class="nav-item" data-view="agent"><span>03</span>Falar com o agente</button>
+          <button class="nav-item" data-view="editor"><span>04</span>Editor IA</button>
+          <button class="nav-item" data-view="matrix"><span>05</span>Matriz de criativos</button>
+          <button class="nav-item" data-view="calendar"><span>06</span>Agenda</button>
+          <button class="nav-item" data-view="insights"><span>07</span>Insights</button>
+          <button class="nav-item" data-view="references"><span>08</span>Referências</button>
+          <button class="nav-item" data-view="external-editor"><span>09</span>Editor Externo ao vivo</button>
+        </nav>
+        <div class="sidebar-foot">
+          <div class="system-line"><i id="schedulerDot"></i><span id="schedulerLabel">Agendador iniciando</span></div>
+          <small>Os dados ficam neste computador.</small>
+        </div>
+      </aside>
+
+      <main>
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">OPERAÇÃO DE CONTEÚDO</p>
+            <h1 id="pageTitle">Visão geral</h1>
+          </div>
+          <div class="topbar-actions">
+            <div class="account-pill">
+              <span class="avatar">GC</span>
+              <span><strong>@seuinstagram</strong><small>Instagram profissional</small></span>
+              <i id="accountDot"></i>
+            </div>
+            <button class="button primary" id="openUpload">+ Novo conteúdo</button>
+          </div>
+        </header>
+
+        <section class="view active" id="view-overview">
+          <div class="hero">
+            <div>
+              <div class="status-chip"><i></i>CONTA CONECTADA À API OFICIAL</div>
+              <h2>Você grava.<br />O resto entra no fluxo.</h2>
+              <p>Envie o vídeo direto ao Reelforge. A transcrição, a edição e a revisão acontecem no próprio sistema; o Editor Externo fica apenas como opção avançada.</p>
+              <div class="hero-actions">
+                <button class="button primary" data-open-upload>+ Enviar vídeo</button>
+                <button class="button ghost" data-go="content">Revisar vídeos →</button>
+              </div>
+            </div>
+            <div class="hero-orbit" aria-label="Fluxo de produção">
+              <div class="orbit-center">V</div>
+              <div class="orbit-node node-a"><b>01</b><span>Bruto</span></div>
+              <div class="orbit-node node-b"><b>02</b><span>Editor IA</span></div>
+              <div class="orbit-node node-c"><b>03</b><span>Revisão</span></div>
+              <div class="orbit-node node-d"><b>04</b><span>Instagram</span></div>
+            </div>
+          </div>
+
+          <div class="auto-schedule-strip">
+            <div><i></i><span><strong>Fila automática ativa</strong><small id="autoScheduleSummary">Carregando os próximos horários…</small></span></div>
+            <div id="autoScheduleSlots" class="slot-list"></div>
+          </div>
+
+          <div class="metric-grid" id="metricGrid">
+            <article class="metric-card"><span>Conteúdos no fluxo</span><strong>—</strong><small>carregando</small></article>
+            <article class="metric-card"><span>Agendados</span><strong>—</strong><small>carregando</small></article>
+            <article class="metric-card"><span>Publicados</span><strong>—</strong><small>carregando</small></article>
+            <article class="metric-card accent"><span>Engajamento médio</span><strong>—</strong><small>últimos posts</small></article>
+          </div>
+
+          <div class="section-heading">
+            <div><p class="eyebrow">AGORA</p><h3>Esteira de produção</h3></div>
+            <button class="text-button" data-go="content">Ver todos →</button>
+          </div>
+          <div class="pipeline" id="overviewPipeline"></div>
+
+          <div class="overview-lower">
+            <article class="panel">
+              <div class="panel-heading"><div><p class="eyebrow">PRÓXIMOS</p><h3>Agenda</h3></div><button class="text-button" data-go="calendar">Abrir agenda</button></div>
+              <div id="upcomingList" class="schedule-list"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading"><div><p class="eyebrow">SINAL</p><h3>Posts que puxam a média</h3></div><button class="text-button" data-go="insights">Detalhes</button></div>
+              <div id="miniPerformance" class="mini-performance"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-content">
+          <div class="section-intro">
+            <div><p class="eyebrow">CONTEÚDOS</p><h2>Reelforge entra, Instagram sai</h2><p>Envie o bruto ou o vídeo editado aqui. O sistema transcreve, prepara a edição e devolve para aprovação.</p></div>
+            <button class="button primary" data-open-chooser>+ Novo conteúdo</button>
+          </div>
+          <div class="simple-flow compact">
+            <div class="flow-step active"><b>01</b><span><strong>Upload direto</strong><small>Bruto ou editado</small></span></div><i></i>
+            <div class="flow-step"><b>02</b><span><strong>Editor IA</strong><small>Transcrição e cortes</small></span></div><i></i>
+            <div class="flow-step"><b>03</b><span><strong>Aprovação</strong><small>Você dá o ok</small></span></div><i></i>
+            <div class="flow-step"><b>04</b><span><strong>Fila automática</strong><small>Até 4 Reels por dia</small></span></div>
+          </div>
+          <div class="filters">
+            <button class="filter active" data-filter="all">Todos</button>
+            <button class="filter" data-filter="inbox">Entrada</button>
+            <button class="filter" data-filter="editing">Em edição</button>
+            <button class="filter" data-filter="ready">Prontos</button>
+            <button class="filter" data-filter="scheduled">Agendados</button>
+            <button class="filter" data-filter="published">Publicados</button>
+          </div>
+          <div class="content-grid" id="contentGrid"></div>
+        </section>
+
+        <section class="view" id="view-agent">
+          <div class="section-intro agent-intro">
+            <div>
+              <p class="eyebrow">AGENTE OPERACIONAL</p>
+              <h2>Converse com quem cuida da esteira</h2>
+              <p>Avise sobre novos vídeos, peça edições e acompanhe a preparação da agenda em uma única conversa.</p>
+            </div>
+            <span class="agent-online-badge"><i></i><span><strong id="agentPresenceTitle">Agente conectado</strong><small id="agentPresenceDetail">Consultando a fila…</small></span></span>
+          </div>
+
+          <div class="agent-layout">
+            <article class="agent-chat-panel">
+              <header class="agent-chat-head">
+                <span class="agent-avatar">V</span>
+                <span><strong>Operador Reelforge</strong><small>Editor Externo · Revisão · Agenda · Instagram</small></span>
+                <i id="agentLiveDot"></i>
+              </header>
+              <div class="agent-messages" id="agentMessages" aria-live="polite"></div>
+              <div class="agent-quick-actions" aria-label="Comandos rápidos">
+                <button type="button" data-agent-prompt="Subi novos vídeos no Editor Externo. Localize os que ainda não entraram na esteira, edite todos seguindo o padrão da Fluxo Padrão e traga para minha revisão.">Novos vídeos no Editor Externo</button>
+                <button type="button" data-agent-prompt="Verifique o andamento de todos os vídeos e me diga o que está editando, o que aguarda revisão e o que está agendado.">Ver andamento</button>
+                <button type="button" data-agent-prompt="Depois que eu aprovar as edições, organize os vídeos nos melhores horários de pico, respeitando o limite de quatro publicações por dia.">Preparar agenda de pico</button>
+              </div>
+              <form class="agent-compose" id="agentChatForm">
+                <textarea id="agentChatInput" rows="3" maxlength="4000" placeholder="Ex.: Subi 7 vídeos no Editor Externo. Edite todos, traga para revisão e depois prepare a agenda nos horários de pico." required></textarea>
+                <div>
+                  <small>Enter envia · Shift+Enter quebra a linha</small>
+                  <button class="button primary" type="submit">Enviar para o agente →</button>
+                </div>
+              </form>
+            </article>
+
+            <aside class="agent-side">
+              <article class="panel agent-current-card">
+                <div class="panel-heading"><div><p class="eyebrow">AGORA</p><h3>Operação atual</h3></div></div>
+                <div id="agentCurrentOperation"></div>
+              </article>
+              <article class="panel agent-safety-card">
+                <span class="agent-shield">✓</span>
+                <div><strong>Aprovação protegida</strong><p>O agente pode editar, gerar legenda e preparar horários. Publicar ou agendar exige uma edição aprovada.</p></div>
+              </article>
+              <article class="panel agent-capabilities">
+                <div class="panel-heading"><div><p class="eyebrow">VOCÊ PODE PEDIR</p><h3>Comandos úteis</h3></div></div>
+                <ul>
+                  <li><b>01</b><span><strong>Buscar no Editor Externo</strong><small>Localizar novos uploads e criar a fila.</small></span></li>
+                  <li><b>02</b><span><strong>Editar em lote</strong><small>Aplicar o padrão, legendar e exportar.</small></span></li>
+                  <li><b>03</b><span><strong>Trazer para revisão</strong><small>Entregar cada vídeo com prévia no painel.</small></span></li>
+                  <li><b>04</b><span><strong>Preparar a agenda</strong><small>Usar os horários de melhor desempenho após aprovação.</small></span></li>
+                </ul>
+              </article>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view editor-studio-view" id="view-editor">
+          <div class="studio-app">
+            <header class="studio-topbar">
+              <div class="studio-project-name">
+                <span class="studio-logo">V</span>
+                <span><small>REELFORGE EDITOR</small><strong id="studioProjectName">Novo projeto</strong></span>
+              </div>
+              <div class="studio-top-actions">
+                <span class="editor-engine-badge"><i></i><span><strong id="editorEngineTitle">Motor disponível</strong><small id="editorEngineDetail">Edição local · sem custo por render</small></span></span>
+                <button class="button ghost studio-tab-shortcut" type="button" data-studio-tab="templates">Modelos</button>
+                <button class="button primary" type="button" data-open-upload="raw">↑ Subir vídeos</button>
+              </div>
+            </header>
+
+            <div class="studio-body">
+              <aside class="studio-ai-panel">
+                <header>
+                  <span class="agent-avatar">V</span>
+                  <span><strong>Agente de edição</strong><small><i></i> pronto para operar</small></span>
+                </header>
+                <div class="studio-agent-intro">
+                  <strong>O que vamos criar?</strong>
+                  <p>Suba vários vídeos e diga uma vez como quer o lote. Eu transcrevo, edito e trago tudo para revisão.</p>
+                </div>
+                <section class="studio-live-operation" id="studioLiveOperation" aria-live="polite">
+                  <div class="studio-live-head">
+                    <span><small>OPERAÇÃO ATUAL</small><strong id="studioLiveTitle">Aguardando um vídeo</strong></span>
+                    <b id="studioLivePercent">0%</b>
+                  </div>
+                  <div class="studio-live-progress"><i id="studioLiveProgress"></i></div>
+                  <p id="studioLiveDetail">O próximo upload aparecerá aqui com todas as etapas.</p>
+                  <div class="studio-live-steps" id="studioLiveSteps"></div>
+                  <button class="studio-live-action" id="studioLiveAction" type="button" hidden>Abrir na timeline</button>
+                </section>
+                <div class="studio-agent-messages" id="studioAgentMessages" aria-live="polite"></div>
+                <div class="studio-agent-prompts">
+                  <button type="button" data-studio-command="Edite todos os vídeos novos no estilo Tech Magnético, velocidade 1.3, música padrão, legendas centralizadas e traga para revisão.">Editar todos no Tech</button>
+                  <button type="button" data-studio-command="Verifique os vídeos novos, escolha o melhor padrão para cada um e edite todos em lote.">Escolher o melhor estilo</button>
+                  <button type="button" data-studio-command="Mostre o andamento do lote atual e o que ainda falta para revisão.">Ver andamento</button>
+                </div>
+                <form class="studio-agent-compose" id="studioAgentForm">
+                  <textarea id="studioAgentInput" rows="4" maxlength="4000" placeholder="Ex.: Edite os 8 vídeos que subi, estilo Tech Magnético, velocidade 1.3 e música padrão." required></textarea>
+                  <div><small>Enter envia · Shift+Enter quebra a linha</small><button type="submit" aria-label="Enviar comando">↑</button></div>
+                </form>
+              </aside>
+
+              <div class="studio-workarea">
+                <div class="studio-upper">
+                  <aside class="studio-media-panel">
+                    <header>
+                      <div class="studio-media-tabs">
+                        <button class="active" type="button" data-studio-tab="assets">MÍDIAS</button>
+                        <button type="button" data-studio-tab="transcript">TRANSCRIÇÃO</button>
+                        <button type="button" data-studio-tab="templates">MODELOS</button>
+                        <button type="button" data-studio-tab="queue">FILA</button>
+                        <button type="button" data-studio-tab="settings">AJUSTES</button>
+                      </div>
+                    </header>
+
+                    <section class="studio-tab-pane active" data-studio-pane="assets">
+                      <div class="studio-asset-toolbar">
+                        <label><span>⌕</span><input id="studioAssetSearch" placeholder="Buscar vídeos" /></label>
+                        <button class="icon-button" type="button" data-open-upload="raw" title="Subir até 10 vídeos">↑</button>
+                      </div>
+                      <button class="studio-drop-hint" type="button" data-open-upload="raw">
+                        <span>＋</span><strong>Subir 5, 10 vídeos de uma vez</strong><small>MP4 ou MOV · o agente organiza o lote</small>
+                      </button>
+                      <div class="studio-asset-grid" id="studioAssetGrid"></div>
+                    </section>
+
+                    <section class="studio-tab-pane studio-transcript-pane" data-studio-pane="transcript">
+                      <div class="studio-pane-title">
+                        <button class="studio-review-transcript" id="studioTranscriptReview" type="button" hidden>Revisar texto</button>
+                        <span><strong id="studioTranscriptTitle">Transcrição do vídeo</strong><small id="studioTranscriptStatus">Selecione uma mídia para acompanhar.</small></span>
+                      </div>
+                      <div class="studio-transcript-progress"><i id="studioTranscriptProgress"></i></div>
+                      <div class="studio-transcript-quality" id="studioTranscriptQuality" hidden></div>
+                      <div class="studio-transcript-segments" id="studioTranscriptSegments"></div>
+                    </section>
+
+                    <section class="studio-tab-pane" data-studio-pane="templates">
+                      <div class="studio-pane-title"><span><strong>Biblioteca visual</strong><small>Escolha um padrão ou deixe o agente decidir.</small></span></div>
+                      <div class="editor-template-grid" id="editorTemplateGrid"></div>
+                    </section>
+
+                    <section class="studio-tab-pane" data-studio-pane="queue">
+                      <div class="studio-pane-title"><span><strong>Fila de renderização</strong><small>O processamento continua em segundo plano.</small></span></div>
+                      <div class="editor-jobs" id="editorJobs"></div>
+                    </section>
+
+                    <section class="studio-tab-pane studio-settings-pane" data-studio-pane="settings">
+                      <form id="editorForm">
+                        <input id="editorTemplate" type="hidden" value="fluxo-padrao-dynamic" />
+                        <label>Vídeo de origem<select id="editorContent" required></select></label>
+                        <label>Padrão de edição<select id="editorPreset" required></select></label>
+                        <label>Linguagem visual
+                          <select id="editorStyle">
+                            <option value="tech">Tech magnético</option>
+                            <option value="authority">Autoridade direta</option>
+                            <option value="natural">Bastidores natural</option>
+                          </select>
+                        </label>
+                        <div class="speed-control">
+                          <div><span><strong>Velocidade da fala</strong><small>Recomendado: 1.3×</small></span><output id="editorSpeedValue">1.3×</output></div>
+                          <input id="editorSpeed" type="range" min="1" max="1.4" step="0.05" value="1.3" />
+                        </div>
+                        <label>Headline<input id="editorHeadline" maxlength="120" placeholder="Texto opcional" /></label>
+                        <label>CTA final<input id="editorCta" maxlength="180" value="COMENTE" /></label>
+                        <div class="editor-toggles">
+                          <label><input id="editorSilence" type="checkbox" checked /><span><strong>Cortar pausas</strong></span></label>
+                          <label><input id="editorCaptions" type="checkbox" checked /><span><strong>Legendas seguras</strong></span></label>
+                          <label><input id="editorMusic" type="checkbox" /><span><strong>Música padrão</strong><small id="editorMusicStatus">Não configurada</small></span></label>
+                        </div>
+                        <button class="button primary" type="submit">✦ Criar edição</button>
+                      </form>
+                      <form id="editorMusicForm">
+                        <label class="editor-music-upload">
+                          <input id="editorMusicFile" type="file" accept="audio/mpeg,audio/wav,audio/mp4,audio/aac" required />
+                          <span>♪</span><strong id="editorMusicName">Escolher música padrão</strong>
+                        </label>
+                        <button class="button ghost" type="submit">Salvar música</button>
+                      </form>
+                      <article class="editor-rules-card">
+                        <strong>Regras protegidas</strong>
+                        <ul>
+                          <li><b>01</b><span>1080 × 1920 · 30 FPS</span></li>
+                          <li><b>02</b><span>Legendas acima da interface</span></li>
+                          <li><b>03</b><span>Máximo de 90 segundos</span></li>
+                          <li><b>04</b><span>Revisão antes de publicar</span></li>
+                          <li><b>05</b><span>Sync temporal obrigatório</span></li>
+                        </ul>
+                      </article>
+                    </section>
+                  </aside>
+
+                  <section class="studio-viewer-panel">
+                    <header>
+                      <span><small>VIEWER</small><strong id="studioViewerLabel">Selecione uma mídia</strong></span>
+                      <div class="timeline-launcher">
+                        <select id="timelineContent" aria-label="Projeto de origem"></select>
+                        <button class="button ghost" id="openTimelineProject" type="button">Abrir</button>
+                      </div>
+                    </header>
+                    <div class="timeline-empty" id="timelineEmpty">
+                      <span>▶</span>
+                      <strong>Selecione um vídeo da biblioteca</strong>
+                      <p>O original fica preservado. Clique em uma mídia para abrir o projeto.</p>
+                    </div>
+                    <div class="timeline-workspace" id="timelineWorkspace" hidden>
+                      <div class="timeline-project-head">
+                        <span><small>PROJETO EDITÁVEL</small><strong id="timelineProjectTitle">Timeline</strong></span>
+                        <span class="timeline-save-state" id="timelineSaveState">Salvo neste computador</span>
+                      </div>
+                      <div class="timeline-stage-grid">
+                        <div class="timeline-monitor">
+                          <div class="timeline-canvas">
+                            <video id="timelinePlayer" playsinline preload="metadata"></video>
+                            <div class="timeline-headline-preview" id="timelineHeadlinePreview"></div>
+                            <div class="timeline-caption-preview" id="timelineCaptionPreview"></div>
+                          </div>
+                          <div class="timeline-transport">
+                            <button class="icon-button" id="timelineBack" type="button" title="Voltar 2 segundos">−2</button>
+                            <button class="button primary" id="timelinePlay" type="button">▶ Reproduzir</button>
+                            <button class="icon-button" id="timelineForward" type="button" title="Avançar 2 segundos">+2</button>
+                            <output id="timelineTime">00:00.0 / 00:00.0</output>
+                          </div>
+                        </div>
+                        <aside class="timeline-inspector">
+                          <div><p class="eyebrow">INSPETOR</p><h3>Propriedades</h3></div>
+                          <label>Velocidade<input id="timelineSpeed" type="range" min="0.5" max="1.4" step="0.05" value="1" /><output id="timelineSpeedValue">1×</output></label>
+                          <label>Headline<input id="timelineHeadline" maxlength="140" placeholder="Texto sobre o vídeo" /></label>
+                          <div class="timeline-property-grid">
+                            <label>Altura<input id="timelineHeadlineY" type="range" min="100" max="1700" step="10" value="180" /></label>
+                            <label>Tamanho<input id="timelineHeadlineSize" type="range" min="28" max="110" step="2" value="56" /></label>
+                          </div>
+                          <label class="timeline-check"><input id="timelineCaptions" type="checkbox" /><span>Legendas da transcrição</span></label>
+                          <label class="timeline-check"><input id="timelineMusic" type="checkbox" /><span>Música padrão</span></label>
+                          <button class="button primary" id="renderTimeline" type="button">✦ Renderizar versão</button>
+                        </aside>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+
+                <section class="studio-timeline-dock" id="timelineDock" hidden>
+                  <div class="timeline-editbar">
+                    <span><strong>Timeline</strong><small>V1 · vídeo principal</small></span>
+                    <button class="button ghost" id="timelineSplit" type="button">✂ Dividir no cursor</button>
+                    <button class="button danger" id="timelineDeleteSegment" type="button">Excluir trecho</button>
+                  </div>
+                  <div class="timeline-ruler" id="timelineRuler">
+                    <div class="timeline-playhead" id="timelinePlayhead"></div>
+                    <div class="timeline-track-label"><b>V1</b><span>Voz principal</span></div>
+                    <div class="timeline-track" id="timelineTrack"></div>
+                    <div class="timeline-track-label timeline-caption-label"><b>CC</b><span>Legendas</span></div>
+                    <div class="timeline-caption-track" id="timelineCaptionTrack"></div>
+                    <div class="timeline-track-label timeline-effect-label"><b>FX</b><span>Zooms + MG</span></div>
+                    <div class="timeline-moment-track" id="timelineEffectTrack"></div>
+                    <div class="timeline-track-label timeline-sfx-label"><b>SFX</b><span>Impactos</span></div>
+                    <div class="timeline-moment-track timeline-sfx-track" id="timelineSfxTrack"></div>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-matrix">
+          <div class="section-intro matrix-intro">
+            <div>
+              <p class="eyebrow">LABORATÓRIO DE CRIATIVOS</p>
+              <h2>Matriz de Criativos</h2>
+              <p>Envie Ganchos, Corpos e CTAs. O Studio combina as peças e entrega os MP4s prontos para baixar.</p>
+            </div>
+            <span class="download-only-badge">↓ SOMENTE DOWNLOAD</span>
+          </div>
+
+          <div class="matrix-safety">
+            <i>✓</i>
+            <span><strong>Separado da publicação</strong><small>Nenhuma variação desta área entra na agenda ou é enviada ao Instagram.</small></span>
+          </div>
+
+          <div class="matrix-formula" aria-label="Quantidade de combinações">
+            <article><span>Ganchos</span><strong id="matrixHookCount">0</strong><small>aberturas</small></article>
+            <b>×</b>
+            <article><span>Corpos</span><strong id="matrixBodyCount">0</strong><small>argumentos</small></article>
+            <b>×</b>
+            <article><span>CTAs</span><strong id="matrixCtaCount">0</strong><small>chamadas</small></article>
+            <b>=</b>
+            <article class="accent"><span>Variações</span><strong id="matrixCombinationCount">0</strong><small>MP4s possíveis</small></article>
+          </div>
+
+          <div class="matrix-workspace">
+            <article class="panel matrix-upload-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">01 · PEÇAS</p><h3>Adicionar vídeos</h3></div>
+              </div>
+              <form id="matrixUploadForm">
+                <label>Tipo da peça
+                  <select id="matrixPieceRole" required>
+                    <option value="hook">Gancho</option>
+                    <option value="body">Corpo</option>
+                    <option value="cta">CTA</option>
+                  </select>
+                </label>
+                <label class="dropzone matrix-dropzone">
+                  <input id="matrixPieceFiles" type="file" accept="video/mp4,video/quicktime,video/webm" multiple required />
+                  <span class="drop-icon">＋</span>
+                  <strong>Selecione uma ou várias peças</strong>
+                  <small>MP4, MOV ou WEBM · o áudio será nivelado automaticamente</small>
+                </label>
+                <button class="button primary" type="submit">Adicionar peças</button>
+                <div class="matrix-upload-status" id="matrixUploadStatus"></div>
+              </form>
+            </article>
+
+            <article class="panel matrix-generate-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">02 · LOTE</p><h3>Gerar combinações</h3></div>
+              </div>
+              <p>O Studio usa todas as peças disponíveis, padroniza em 1080×1920 e une Gancho → Corpo → CTA com cortes secos.</p>
+              <label>Nome do lote
+                <input id="matrixBatchName" placeholder="Ex.: Oferta Reelforge · Julho" />
+              </label>
+              <div class="matrix-ready-line">
+                <span><strong id="matrixReadyTitle">Adicione as três categorias</strong><small id="matrixReadyDetail">Precisamos de ao menos um Gancho, um Corpo e um CTA.</small></span>
+              </div>
+              <button class="button primary" id="generateMatrixBatch" type="button">Gerar variações</button>
+            </article>
+          </div>
+
+          <div class="section-heading matrix-section-heading">
+            <div><p class="eyebrow">PEÇAS DISPONÍVEIS</p><h3>Biblioteca do lote</h3></div>
+          </div>
+          <div class="matrix-piece-columns" id="matrixPieceColumns"></div>
+
+          <div class="section-heading matrix-section-heading">
+            <div><p class="eyebrow">RESULTADOS</p><h3>Lotes gerados</h3></div>
+          </div>
+          <div class="matrix-batches" id="matrixBatches"></div>
+        </section>
+
+        <section class="view" id="view-calendar">
+          <div class="section-intro">
+            <div><p class="eyebrow">AGENDA</p><h2>Fila automática</h2><p>Até quatro Reels por dia, distribuídos nos horários de maior potencial.</p></div>
+          </div>
+          <div class="agenda-source">
+            <div><i></i><span><strong>Agenda do Content Studio sincronizada</strong><small id="agendaSourceDetail">Consultando a fila local…</small></span></div>
+            <div class="source-note"><strong>Agenda externa da Meta</strong><span>A API oficial não lista Reels programados diretamente no Instagram ou Business Suite. Esses itens precisam ser recriados ou registrados aqui para aparecerem nesta agenda.</span></div>
+          </div>
+          <div class="calendar-layout">
+            <article class="panel calendar-card">
+              <div class="calendar-head"><button aria-label="Mês anterior">←</button><h3 id="calendarMonth"></h3><button aria-label="Próximo mês">→</button></div>
+              <div class="calendar-grid" id="calendarGrid"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading"><div><p class="eyebrow">FILA</p><h3>Próximas entregas</h3></div></div>
+              <div id="fullScheduleList" class="schedule-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-insights">
+          <div class="section-intro">
+            <div><p class="eyebrow">INSIGHTS</p><h2>Aprender com cada publicação</h2><p>O agente cruza alcance, retenção, compartilhamentos e salvamentos para orientar os próximos roteiros e gravações.</p></div>
+            <button class="button ghost" id="refreshInsights">Atualizar dados</button>
+          </div>
+          <article class="performance-agent">
+            <div class="performance-agent-head">
+              <div>
+                <span class="agent-orbit">✦</span>
+                <div><p class="eyebrow">AGENTE DE PERFORMANCE</p><h3>Briefing para o próximo vídeo</h3></div>
+              </div>
+              <span id="performanceConfidence" class="confidence-pill">Analisando</span>
+            </div>
+            <div class="performance-agent-grid">
+              <div id="performanceAgentSummary" class="performance-summary"></div>
+              <div id="recordingBrief" class="recording-brief"></div>
+            </div>
+          </article>
+          <div class="metric-grid" id="insightMetricGrid"></div>
+          <div class="insight-layout">
+            <article class="panel">
+              <div class="panel-heading"><div><p class="eyebrow">DESTAQUES</p><h3>Maior potencial de distribuição</h3></div><small>Score do agente</small></div>
+              <div id="topPosts" class="top-posts"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading"><div><p class="eyebrow">RECENTES</p><h3>Últimas publicações</h3></div><small>Dados reais da Meta</small></div>
+              <div id="recentPosts" class="top-posts"></div>
+            </article>
+          </div>
+          <article class="panel insight-pattern-panel">
+            <div class="panel-heading"><div><p class="eyebrow">PADRÕES</p><h3>O que repetir — e o que corrigir</h3></div></div>
+            <div id="insightNotes" class="insight-notes"></div>
+          </article>
+        </section>
+
+        <section class="view" id="view-references">
+          <div class="section-intro">
+            <div><p class="eyebrow">REFERÊNCIAS</p><h2>Ensine um estilo ao agente</h2><p>Cole o link de um Reel. O agente aprende a linguagem de edição e cria um padrão reutilizável no Editor Externo.</p></div>
+            <button class="button primary" id="openReference">+ Aprender com um Reel</button>
+          </div>
+          <div class="reference-how-it-works">
+            <span><b>1</b> Cole o link</span><i>→</i>
+            <span><b>2</b> O agente analisa</span><i>→</i>
+            <span><b>3</b> O padrão aparece nas edições</span>
+          </div>
+          <div class="reference-grid" id="referenceGrid"></div>
+        </section>
+
+        <section class="view" id="view-external-editor">
+          <div class="section-intro">
+            <div><p class="eyebrow">EDIÇÃO AO VIVO</p><h2>Editor Externo dentro do Studio</h2><p>Acompanhe a timeline e a prévia enquanto as alterações são aplicadas no projeto.</p></div>
+            <div class="external-editor-toolbar">
+              <select id="external-editorProjectSelect" aria-label="Projeto do Editor Externo"></select>
+              <button class="button ghost" id="reloadExternalEditor">Atualizar editor</button>
+              <a class="button primary" id="openExternalEditorFull" href="#" target="_blank" rel="noopener">Abrir tela completa</a>
+            </div>
+          </div>
+          <div class="external-editor-live-shell">
+            <div class="external-editor-live-head">
+              <span><i></i><strong id="external-editorLiveTitle">Selecione um projeto</strong></span>
+              <small>As alterações feitas pelo Codex aparecem no editor conectado.</small>
+            </div>
+            <div class="external-editor-frame-wrap">
+              <iframe
+                id="external-editorFrame"
+                title="Editor Editor Externo ao vivo"
+                src="about:blank"
+                allow="clipboard-read; clipboard-write; fullscreen; microphone; camera"
+                referrerpolicy="strict-origin-when-cross-origin"
+              ></iframe>
+              <div class="external-editor-empty" id="external-editorEmpty">
+                <span class="auth-lock">↗</span>
+                <strong id="external-editorEmptyTitle">Conecte sua sessão do Editor Externo</strong>
+                <span>Por segurança, Google e o código por e-mail não funcionam dentro de um quadro incorporado. Entre em uma janela normal e depois carregue o editor aqui.</span>
+                <div class="external-editor-auth-actions">
+                  <a class="button primary" id="external-editorLoginLink" href="#" target="_blank" rel="noopener">1. Entrar no Editor Externo</a>
+                  <button class="button ghost" id="loadExternalEditorEmbed" type="button">2. Já entrei — carregar aqui</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="uploadChooserDialog" class="chooser-dialog">
+      <div class="dialog-shell">
+        <div class="dialog-head"><div><p class="eyebrow">NOVO CONTEÚDO</p><h2>O que você quer subir?</h2></div><button type="button" class="close" data-close>×</button></div>
+        <div class="upload-choices">
+          <button type="button" class="upload-choice accent" data-upload-kind="external-editor">
+            <span class="choice-icon">CC</span>
+            <strong>Vídeo no Editor Externo</strong>
+            <small>Escolha o projeto que já recebeu o bruto e envie direto para a fila do agente.</small>
+          </button>
+          <button type="button" class="upload-choice" data-upload-kind="final">
+            <span class="choice-icon">✓</span>
+            <strong>Vídeo já editado</strong>
+            <small>Entra pronto para legenda, revisão e agendamento.</small>
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="external-editorSourceDialog">
+      <form id="external-editorSourceForm">
+        <div class="dialog-head"><div><p class="eyebrow">ENTRADA PELO EDITOR EXTERNO</p><h2>Enviar projeto para edição</h2></div><button type="button" class="close" data-close>×</button></div>
+        <label>Projeto do Editor Externo<select id="external-editorSourceProject" required></select></label>
+        <label>Nome do vídeo no projeto
+          <input id="external-editorSourceAssetName" placeholder="Opcional — deixe vazio se houver apenas um vídeo bruto" />
+        </label>
+        <label>Título no painel
+          <input id="external-editorSourceTitle" placeholder="Opcional — usamos o nome do projeto ou do vídeo" />
+        </label>
+        <label>Padrão de edição
+          <select id="external-editorSourcePreset">
+            <option value="fluxo-padrao">Fluxo Padrão — padrão principal</option>
+            <option value="autoridade-direta">Autoridade direta — mais ritmo e conversão</option>
+            <option value="bastidores-natural">Bastidores natural — mais espontâneo</option>
+          </select>
+        </label>
+        <label>Instruções opcionais
+          <textarea id="external-editorSourceNotes" rows="4" placeholder="Ex.: manter a parte da meta, retirar a repetição e não adicionar música."></textarea>
+        </label>
+        <div class="switch-row"><span><strong>Sem upload duplicado</strong><small>O agente trabalha no arquivo que já está dentro do Editor Externo.</small></span><span aria-hidden="true">✓</span></div>
+        <div class="dialog-actions"><button type="button" class="button ghost" data-close>Cancelar</button><button class="button primary" type="submit">Enviar para edição agora</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="uploadDialog">
+      <form id="uploadForm">
+        <div class="dialog-head"><div><p class="eyebrow">UPLOAD EM LOTE</p><h2>Adicionar vídeos ao Reelforge</h2></div><button type="button" class="close" data-close>×</button></div>
+        <input type="hidden" name="contentId" id="uploadContentId" />
+        <input type="hidden" name="kind" id="uploadKind" value="raw" />
+        <div class="kind-switch" id="uploadKindSwitch">
+          <button type="button" data-kind="raw">Vídeo bruto</button>
+          <button type="button" data-kind="final">Vídeo editado</button>
+        </div>
+        <label>Título do lote<input name="title" id="uploadTitle" placeholder="Opcional — cada vídeo usa o próprio nome" /></label>
+        <label>Padrão de edição
+          <select name="editingPreset" id="editingPreset">
+            <option value="fluxo-padrao">Fluxo Padrão — padrão principal</option>
+            <option value="autoridade-direta">Autoridade direta — mais ritmo e conversão</option>
+            <option value="bastidores-natural">Bastidores natural — mais espontâneo</option>
+          </select>
+        </label>
+        <input type="hidden" name="automationMode" value="true" />
+        <input type="hidden" name="transcribe" value="true" />
+        <div class="switch-row"><span><strong>Fluxo automático ativado</strong><small>O bruto entra direto para edição; o editado entra para revisão.</small></span><span aria-hidden="true">✓</span></div>
+        <label class="dropzone" id="dropzone">
+          <input type="file" name="video" id="videoInput" accept="video/mp4,video/quicktime,video/webm" multiple required />
+          <span class="drop-icon">↑</span>
+          <strong id="dropTitle">Arraste até 10 vídeos aqui</strong>
+          <small>MP4, MOV ou WEBM • até 1 GB por arquivo • os originais ficam neste computador</small>
+        </label>
+        <details class="advanced-upload">
+          <summary>Adicionar instruções opcionais</summary>
+          <label>Série<input name="series" value="Fluxo Padrão" /></label>
+          <label>Observação para a edição<textarea name="notes" rows="4" placeholder="Ex.: manter o trecho sobre a meta e retirar a parte em que repito a frase."></textarea></label>
+        </details>
+        <div class="upload-progress" id="uploadProgress"><i></i><span>Preparando o lote…</span></div>
+        <div class="dialog-actions"><button type="button" class="button ghost" data-close>Cancelar</button><button class="button primary" type="submit">Adicionar vídeos</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="playerDialog" class="player-dialog">
+      <div class="player-shell">
+        <div class="dialog-head">
+          <div><p class="eyebrow" id="reviewPlayerKind">REVISÃO DO VÍDEO</p><h2 id="reviewPlayerTitle">Revisar vídeo</h2></div>
+          <button type="button" class="close" data-close>×</button>
+        </div>
+        <div class="review-stage">
+          <video id="reviewPlayer" controls playsinline preload="metadata"></video>
+        </div>
+        <small class="helper-copy">Use os controles para pausar, ajustar o volume, avançar e abrir em tela cheia.</small>
+        <div class="dialog-actions"><button type="button" class="button primary" data-close>Concluir revisão</button></div>
+      </div>
+    </dialog>
+
+    <dialog id="captionDialog">
+      <form id="captionForm">
+        <div class="dialog-head"><div><p class="eyebrow">COPY PARA INSTAGRAM</p><h2>Legenda e hashtags</h2></div><button type="button" class="close" data-close>×</button></div>
+        <input type="hidden" id="captionContentId" />
+        <div id="captionSourceStatus" class="caption-source-status waiting"></div>
+        <div class="caption-generator">
+          <label>Estilo
+            <select id="captionStyle">
+              <option value="direct">Direta e envolvente</option>
+              <option value="story">Bastidores e história</option>
+              <option value="authority">Autoridade e conversão</option>
+            </select>
+          </label>
+          <button class="button ghost" id="generateCaption" type="button">✦ Gerar pela transcrição</button>
+        </div>
+        <button class="button ghost local-transcribe-button" id="startLocalTranscript" type="button">◎ Transcrever neste computador</button>
+        <label>Legenda<textarea id="captionText" rows="10" placeholder="Escreva ou gere uma legenda para este conteúdo."></textarea></label>
+        <label>Hashtags<input id="captionHashtags" placeholder="#SaaS #Automacao #Conteudo" /></label>
+        <small class="helper-copy">Você pode editar livremente antes de salvar. A publicação automática só aceita legenda sincronizada com a fala ou texto salvo manualmente.</small>
+        <div class="dialog-actions"><button type="button" class="button ghost" data-close>Cancelar</button><button class="button primary" type="submit">Salvar legenda</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="transcriptReviewDialog" class="transcript-review-dialog">
+      <form id="transcriptReviewForm">
+        <div class="dialog-head"><div><p class="eyebrow">CONTROLE DE QUALIDADE</p><h2>Revisar transcrição sincronizada</h2></div><button type="button" class="close" data-close>×</button></div>
+        <input type="hidden" id="transcriptReviewContentId" />
+        <div class="transcript-review-audit" id="transcriptReviewAudit"></div>
+        <label>Texto reconhecido<textarea id="transcriptReviewText" rows="16" spellcheck="true" required></textarea></label>
+        <small class="helper-copy">Corrija somente as palavras. O Reelforge realinha cada alteração aos timestamps originais para manter as legendas sincronizadas.</small>
+        <div class="dialog-actions"><button type="button" class="button ghost" data-close>Cancelar</button><button class="button primary" type="submit">Salvar revisão sincronizada</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="revisionDialog">
+      <form id="revisionForm">
+        <div class="dialog-head"><div><p class="eyebrow">REVISÃO DA EDIÇÃO</p><h2>Pedir ajustes</h2></div><button type="button" class="close" data-close>×</button></div>
+        <input type="hidden" id="revisionContentId" />
+        <label>Trecho ou tempo do vídeo<input id="revisionTimecode" placeholder="Ex.: 00:18–00:27 ou “depois da primeira frase”" /></label>
+        <label>O que precisa mudar<textarea id="revisionInstructions" rows="7" placeholder="Ex.: cortar a pausa, trocar a legenda e aproximar o enquadramento neste trecho." required></textarea></label>
+        <small class="helper-copy">O pedido ficará salvo no conteúdo para orientar a próxima passagem no Editor Externo.</small>
+        <div class="dialog-actions"><button type="button" class="button ghost" data-close>Cancelar</button><button class="button primary" type="submit">Enviar para reedição</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="linkExternalEditorDialog">
+      <form id="linkExternalEditorForm">
+        <div class="dialog-head"><div><p class="eyebrow">PROJETO DE EDIÇÃO</p><h2>Vincular ao Editor Externo</h2></div><button type="button" class="close" data-close>×</button></div>
+        <input type="hidden" id="linkExternalEditorContentId" />
+        <label>Projeto<select id="linkExternalEditorProject" required></select></label>
+        <small class="helper-copy">Depois de vinculado, o card abre diretamente o projeto certo na área Editor Externo ao vivo.</small>
+        <div class="dialog-actions"><button type="button" class="button ghost" data-close>Cancelar</button><button class="button primary" type="submit">Vincular projeto</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="scheduleDialog">
+      <form id="scheduleForm">
+        <div class="dialog-head"><div><p class="eyebrow">PUBLICAÇÃO</p><h2>Programar Reel</h2></div><button type="button" class="close" data-close>×</button></div>
+        <input type="hidden" id="scheduleContentId" />
+        <label>Data e horário<input type="datetime-local" id="publishAt" required /></label>
+        <div class="schedule-summary" id="scheduleSummary"></div>
+        <label>Legenda<textarea id="scheduleCaption" rows="7" required></textarea></label>
+        <label class="switch-row"><span><strong>Compartilhar também no Feed</strong><small>Recomendado para ampliar o alcance inicial.</small></span><input type="checkbox" id="shareToFeed" checked /></label>
+        <div class="dialog-actions"><button type="button" class="button ghost" data-close>Cancelar</button><button class="button primary" type="submit">Confirmar agendamento</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="coverDialog" class="cover-dialog">
+      <div class="cover-shell">
+        <div class="dialog-head">
+          <div><p class="eyebrow">AGENTE DE CAPA</p><h2 id="coverTitle">Escolher capa</h2></div>
+          <button type="button" class="close" data-close>×</button>
+        </div>
+        <div class="cover-agent-summary" id="coverAgentSummary"></div>
+        <div class="cover-candidates" id="coverCandidates"></div>
+        <small class="helper-copy">A primeira opção já é aplicada automaticamente. Trocar é opcional; qualquer escolha feita aqui também atualiza um conteúdo que ainda esteja na fila.</small>
+        <div class="dialog-actions">
+          <button type="button" class="button ghost" id="regenerateCover">✦ Refazer análise</button>
+          <button type="button" class="button primary" data-close>Manter capa escolhida</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="referenceDialog">
+      <form id="referenceForm">
+        <div class="dialog-head"><div><p class="eyebrow">APRENDER EDIÇÃO</p><h2>Usar um Reel como referência</h2></div><button type="button" class="close" data-close>×</button></div>
+        <label>Link do Instagram<input name="url" type="url" placeholder="https://www.instagram.com/reel/..." required /></label>
+        <label>Nome deste padrão<input name="title" placeholder="Opcional — ex.: Cortes rápidos com legendas verdes" /></label>
+        <label>O que você mais gostou?<textarea name="notes" rows="4" placeholder="Opcional — ex.: gostei do ritmo, das legendas e das mudanças de enquadramento."></textarea></label>
+        <label class="learn-style-toggle">
+          <input type="checkbox" name="learnStyle" value="true" checked />
+          <span><strong>Aprender automaticamente este estilo</strong><small>O agente analisa cortes, ritmo, zooms, legendas, cores, B-roll, música e CTA. Ele não copia a identidade nem o conteúdo do autor.</small></span>
+        </label>
+        <div class="dialog-actions"><button type="button" class="button ghost" data-close>Cancelar</button><button class="button primary" type="submit">Salvar e ensinar ao agente</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="templateCompareDialog" class="template-compare-dialog">
+      <div class="template-compare-shell">
+        <div class="dialog-head">
+          <div><p class="eyebrow">REFERÊNCIA × RENDER</p><h2 id="templateCompareTitle">Comparar modelo</h2></div>
+          <button type="button" class="close" data-close>×</button>
+        </div>
+        <div class="template-score-strip" id="templateScoreStrip"></div>
+        <div class="template-compare-grid">
+          <section>
+            <small>FRAMES DA REFERÊNCIA</small>
+            <div class="template-reference-frames" id="templateReferenceFrames"></div>
+          </section>
+          <section>
+            <small>TESTE GERADO PELO REELFORGE</small>
+            <div class="template-output-proof" id="templateOutputProof"></div>
+          </section>
+        </div>
+        <div class="template-recipe" id="templateRecipe"></div>
+        <div class="dialog-actions">
+          <button type="button" class="button ghost" data-close>Fechar</button>
+          <button type="button" class="button primary" id="runTemplateTest">✦ Gerar teste de 16s</button>
+        </div>
+      </div>
+    </dialog>
+
+    <div class="toast" id="toast" role="status"></div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

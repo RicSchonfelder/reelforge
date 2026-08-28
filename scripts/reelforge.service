@@ -1,0 +1,18 @@
+[Unit]
+Description=Reelforge — estúdio de Reels
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Ajuste o caminho e o usuário conforme sua instalação
+User=%i
+WorkingDirectory=/opt/reelforge
+ExecStart=/usr/bin/node src/dashboard-server.mjs
+Restart=on-failure
+RestartSec=5
+Environment=DASHBOARD_HOST=0.0.0.0
+EnvironmentFile=/opt/reelforge/.env
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,30 @@
+{
+  "name": "reelforge",
+  "version": "1.0.0",
+  "description": "Estúdio local de produção e publicação de Reels via API oficial do Instagram",
+  "license": "MIT",
+  "private": false,
+  "type": "module",
+  "scripts": {
+    "dashboard": "node src/dashboard-server.mjs",
+    "doctor": "node src/cli.mjs doctor",
+    "list": "node src/cli.mjs list",
+    "run-due": "node src/cli.mjs run-due",
+    "scheduler": "node src/scheduler.mjs",
+    "setup:cloudflared": "node scripts/install-cloudflared.mjs",
+    "setup:model": "node scripts/prefetch-model.mjs",
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
+    "archiver": "^8.0.0",
+    "busboy": "^1.6.0",
+    "ffmpeg-static": "^5.3.0",
+    "ffprobe-static": "^3.1.0",
+    "sharp": "^0.35.3",
+    "wavefile": "^11.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
