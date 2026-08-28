@@ -37,12 +37,19 @@ function probe(filePath) {
       "json",
       filePath,
     ],
-    { encoding: "utf8", windowsHide: true },
+    { encoding: "utf8", windowsHide: true, maxBuffer: 16 * 1024 * 1024 },
   );
   if (result.status !== 0) {
-    throw new Error(`Não foi possível analisar o vídeo: ${result.stderr.trim()}`);
+    throw new Error(`Não foi possível analisar o vídeo: ${result.stderr?.trim() || "erro desconhecido"}`);
   }
-  const data = JSON.parse(result.stdout);
+  let data;
+  try {
+    data = JSON.parse(result.stdout);
+  } catch {
+    throw new Error(
+      `Saída inválida do ffprobe: ${result.stdout?.slice(0, 200) || "vazia"}`,
+    );
+  }
   const video = data.streams?.find((stream) => stream.codec_type === "video");
   const audio = data.streams?.find((stream) => stream.codec_type === "audio");
   const duration = Number(data.format?.duration);
@@ -417,9 +424,11 @@ function renderWithProgress(job, args, duration) {
         const now = Date.now();
         if (now - lastUpdate < 700) continue;
         lastUpdate = now;
-        const seconds = Number(match[1]) / 1_000_000;
+        // Duração inválida não pode gerar progress NaN; o piso 0.04 segura a barra.
+        const totalSeconds = Number.isFinite(duration) && duration > 0 ? duration : Infinity;
+        const seconds = Math.min(Number(match[1]), Number.MAX_SAFE_INTEGER) / 1_000_000;
         updateEditorJob(job.id, {
-          progress: Math.min(0.98, Math.max(0.04, seconds / duration)),
+          progress: Math.min(0.98, Math.max(0.04, seconds / totalSeconds)),
           step: job.settings?.previewMode
             ? "Renderizando prévia comparativa"
             : "Renderizando vídeo em alta qualidade",
@@ -497,6 +506,13 @@ export async function renderEditorJob(jobId) {
           end: Math.max(0, Math.min(source.duration, Number(segment.end || 0))),
         }))
         .filter((segment) => segment.end - segment.start >= 0.08)
+        .sort((a, b) => a.start - b.start)
+        // Corta trechos sobrepostos em vez de renderizar conteúdo duplicado.
+        .reduce((unique, segment) => {
+          const start = Math.max(segment.start, unique.at(-1)?.end ?? 0);
+          if (segment.end - start >= 0.08) unique.push({ start, end: segment.end });
+          return unique;
+        }, [])
       : [];
     const segments = manualSegments.length
       ? manualSegments

@@ -1,7 +1,10 @@
 import fs from "node:fs";
+import net from "node:net";
 import path from "node:path";
+import ffprobeStatic from "ffprobe-static";
+import ffmpegStatic from "ffmpeg-static";
 import { parseArgs, parseBoolean } from "./args.mjs";
-import { getConfig, appRoot } from "./env.mjs";
+import { getConfig, appRoot, dataRoot } from "./env.mjs";
 import { validateMedia } from "./media.mjs";
 import {
   addJob,
@@ -58,7 +61,34 @@ async function main() {
     console.log(`IG_USER_ID: ${config.igUserId ? "configurado" : "ausente"}`);
     console.log(`IG_ACCESS_TOKEN: ${config.accessToken ? "configurado" : "ausente"}`);
     console.log(`META_API_VERSION: ${config.apiVersion}`);
-    console.log(`FFPROBE_PATH: ${config.ffprobePath}`);
+
+    const ffprobePath = config.ffprobePath === "ffprobe" ? ffprobeStatic.path : config.ffprobePath;
+    const ffprobeOk = Boolean(ffprobePath) && fs.existsSync(ffprobePath);
+    console.log(`ffprobe (${ffprobePath}): ${ffprobeOk ? "ok" : "ausente"}`);
+
+    const ffmpegOk = Boolean(ffmpegStatic) && fs.existsSync(ffmpegStatic);
+    console.log(`ffmpeg (${ffmpegStatic}): ${ffmpegOk ? "ok" : "ausente"}`);
+
+    let dataWritable = false;
+    try {
+      fs.mkdirSync(dataRoot, { recursive: true });
+      const probePath = path.join(dataRoot, `.doctor-write-${process.pid}.tmp`);
+      fs.writeFileSync(probePath, "ok");
+      fs.rmSync(probePath, { force: true });
+      dataWritable = true;
+    } catch {
+      dataWritable = false;
+    }
+    console.log(`Diretório de dados (${dataRoot}): ${dataWritable ? "escrita ok" : "sem permissão de escrita"}`);
+
+    const panelPort = Number(process.env.DASHBOARD_PORT || 4170);
+    const portFree = await new Promise((resolve) => {
+      const tester = net.createServer();
+      tester.once("error", () => resolve(false));
+      tester.once("listening", () => tester.close(() => resolve(true)));
+      tester.listen(panelPort, "127.0.0.1");
+    });
+    console.log(`Porta do painel (${panelPort}): ${portFree ? "livre" : "em uso"}`);
     return;
   }
 
@@ -74,6 +104,14 @@ async function main() {
   if (command === "add") {
     if (!options.file || !options["caption-file"] || !options.at) {
       throw new Error("Informe --file, --caption-file e --at.");
+    }
+    const config = getConfig();
+    const validation = validateMedia(options.file, { ffprobePath: config.ffprobePath });
+    if (!validation.ok) {
+      console.error("Vídeo inválido; nada foi agendado.");
+      for (const message of validation.errors) console.error(`  - ${message}`);
+      process.exitCode = 1;
+      return;
     }
     const caption = fs.readFileSync(path.resolve(options["caption-file"]), "utf8");
     const job = addJob({

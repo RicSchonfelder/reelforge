@@ -43,7 +43,7 @@ function writeState(state) {
   if (state.messages.length > MAX_MESSAGES) {
     state.messages = [
       welcomeMessage,
-      ...state.messages.filter((message) => message.id !== "welcome").slice(-MAX_MESSAGES),
+      ...state.messages.filter((message) => message.id !== "welcome").slice(-(MAX_MESSAGES - 1)),
     ];
   }
   if (state.commands.length > MAX_COMMANDS) {

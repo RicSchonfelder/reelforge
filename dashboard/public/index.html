@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="light" />
     <meta name="theme-color" content="#f7f1e8" />
     <meta name="application-name" content="Reelforge" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -250,7 +250,7 @@
                     <section class="studio-tab-pane active" data-studio-pane="assets">
                       <div class="studio-asset-toolbar">
                         <label><span>⌕</span><input id="studioAssetSearch" placeholder="Buscar vídeos" /></label>
-                        <button class="icon-button" type="button" data-open-upload="raw" title="Subir até 10 vídeos">↑</button>
+                        <button class="icon-button" type="button" data-open-upload="raw" title="Subir até 10 vídeos" aria-label="Subir vídeos">↑</button>
                       </div>
                       <button class="studio-drop-hint" type="button" data-open-upload="raw">
                         <span>＋</span><strong>Subir 5, 10 vídeos de uma vez</strong><small>MP4 ou MOV · o agente organiza o lote</small>
@@ -480,7 +480,7 @@
           </div>
           <div class="calendar-layout">
             <article class="panel calendar-card">
-              <div class="calendar-head"><button aria-label="Mês anterior">←</button><h3 id="calendarMonth"></h3><button aria-label="Próximo mês">→</button></div>
+              <div class="calendar-head"><button aria-label="Mês anterior" data-calendar-nav="prev">←</button><h3 id="calendarMonth"></h3><button aria-label="Próximo mês" data-calendar-nav="next">→</button></div>
               <div class="calendar-grid" id="calendarGrid"></div>
             </article>
             <article class="panel">
@@ -555,7 +555,7 @@
             <div class="external-editor-frame-wrap">
               <iframe
                 id="external-editorFrame"
-                title="Editor Editor Externo ao vivo"
+                title="Editor Externo ao vivo"
                 src="about:blank"
                 allow="clipboard-read; clipboard-write; fullscreen; microphone; camera"
                 referrerpolicy="strict-origin-when-cross-origin"
@@ -577,7 +577,7 @@
 
     <dialog id="uploadChooserDialog" class="chooser-dialog">
       <div class="dialog-shell">
-        <div class="dialog-head"><div><p class="eyebrow">NOVO CONTEÚDO</p><h2>O que você quer subir?</h2></div><button type="button" class="close" data-close>×</button></div>
+        <div class="dialog-head"><div><p class="eyebrow">NOVO CONTEÚDO</p><h2>O que você quer subir?</h2></div><button type="button" class="close" data-close aria-label="Fechar">×</button></div>
         <div class="upload-choices">
           <button type="button" class="upload-choice accent" data-upload-kind="external-editor">
             <span class="choice-icon">CC</span>
@@ -595,7 +595,7 @@
 
     <dialog id="external-editorSourceDialog">
       <form id="external-editorSourceForm">
-        <div class="dialog-head"><div><p class="eyebrow">ENTRADA PELO EDITOR EXTERNO</p><h2>Enviar projeto para edição</h2></div><button type="button" class="close" data-close>×</button></div>
+        <div class="dialog-head"><div><p class="eyebrow">ENTRADA PELO EDITOR EXTERNO</p><h2>Enviar projeto para edição</h2></div><button type="button" class="close" data-close aria-label="Fechar">×</button></div>
         <label>Projeto do Editor Externo<select id="external-editorSourceProject" required></select></label>
         <label>Nome do vídeo no projeto
           <input id="external-editorSourceAssetName" placeholder="Opcional — deixe vazio se houver apenas um vídeo bruto" />
@@ -620,7 +620,7 @@
 
     <dialog id="uploadDialog">
       <form id="uploadForm">
-        <div class="dialog-head"><div><p class="eyebrow">UPLOAD EM LOTE</p><h2>Adicionar vídeos ao Reelforge</h2></div><button type="button" class="close" data-close>×</button></div>
+        <div class="dialog-head"><div><p class="eyebrow">UPLOAD EM LOTE</p><h2>Adicionar vídeos ao Reelforge</h2></div><button type="button" class="close" data-close aria-label="Fechar">×</button></div>
         <input type="hidden" name="contentId" id="uploadContentId" />
         <input type="hidden" name="kind" id="uploadKind" value="raw" />
         <div class="kind-switch" id="uploadKindSwitch">
@@ -658,7 +658,7 @@
       <div class="player-shell">
         <div class="dialog-head">
           <div><p class="eyebrow" id="reviewPlayerKind">REVISÃO DO VÍDEO</p><h2 id="reviewPlayerTitle">Revisar vídeo</h2></div>
-          <button type="button" class="close" data-close>×</button>
+          <button type="button" class="close" data-close aria-label="Fechar">×</button>
         </div>
         <div class="review-stage">
           <video id="reviewPlayer" controls playsinline preload="metadata"></video>
@@ -670,7 +670,7 @@
 
     <dialog id="captionDialog">
       <form id="captionForm">
-        <div class="dialog-head"><div><p class="eyebrow">COPY PARA INSTAGRAM</p><h2>Legenda e hashtags</h2></div><button type="button" class="close" data-close>×</button></div>
+        <div class="dialog-head"><div><p class="eyebrow">COPY PARA INSTAGRAM</p><h2>Legenda e hashtags</h2></div><button type="button" class="close" data-close aria-label="Fechar">×</button></div>
         <input type="hidden" id="captionContentId" />
         <div id="captionSourceStatus" class="caption-source-status waiting"></div>
         <div class="caption-generator">
@@ -693,7 +693,7 @@
 
     <dialog id="transcriptReviewDialog" class="transcript-review-dialog">
       <form id="transcriptReviewForm">
-        <div class="dialog-head"><div><p class="eyebrow">CONTROLE DE QUALIDADE</p><h2>Revisar transcrição sincronizada</h2></div><button type="button" class="close" data-close>×</button></div>
+        <div class="dialog-head"><div><p class="eyebrow">CONTROLE DE QUALIDADE</p><h2>Revisar transcrição sincronizada</h2></div><button type="button" class="close" data-close aria-label="Fechar">×</button></div>
         <input type="hidden" id="transcriptReviewContentId" />
         <div class="transcript-review-audit" id="transcriptReviewAudit"></div>
         <label>Texto reconhecido<textarea id="transcriptReviewText" rows="16" spellcheck="true" required></textarea></label>
@@ -704,7 +704,7 @@
 
     <dialog id="revisionDialog">
       <form id="revisionForm">
-        <div class="dialog-head"><div><p class="eyebrow">REVISÃO DA EDIÇÃO</p><h2>Pedir ajustes</h2></div><button type="button" class="close" data-close>×</button></div>
+        <div class="dialog-head"><div><p class="eyebrow">REVISÃO DA EDIÇÃO</p><h2>Pedir ajustes</h2></div><button type="button" class="close" data-close aria-label="Fechar">×</button></div>
         <input type="hidden" id="revisionContentId" />
         <label>Trecho ou tempo do vídeo<input id="revisionTimecode" placeholder="Ex.: 00:18–00:27 ou “depois da primeira frase”" /></label>
         <label>O que precisa mudar<textarea id="revisionInstructions" rows="7" placeholder="Ex.: cortar a pausa, trocar a legenda e aproximar o enquadramento neste trecho." required></textarea></label>
@@ -715,7 +715,7 @@
 
     <dialog id="linkExternalEditorDialog">
       <form id="linkExternalEditorForm">
-        <div class="dialog-head"><div><p class="eyebrow">PROJETO DE EDIÇÃO</p><h2>Vincular ao Editor Externo</h2></div><button type="button" class="close" data-close>×</button></div>
+        <div class="dialog-head"><div><p class="eyebrow">PROJETO DE EDIÇÃO</p><h2>Vincular ao Editor Externo</h2></div><button type="button" class="close" data-close aria-label="Fechar">×</button></div>
         <input type="hidden" id="linkExternalEditorContentId" />
         <label>Projeto<select id="linkExternalEditorProject" required></select></label>
         <small class="helper-copy">Depois de vinculado, o card abre diretamente o projeto certo na área Editor Externo ao vivo.</small>
@@ -725,7 +725,7 @@
 
     <dialog id="scheduleDialog">
       <form id="scheduleForm">
-        <div class="dialog-head"><div><p class="eyebrow">PUBLICAÇÃO</p><h2>Programar Reel</h2></div><button type="button" class="close" data-close>×</button></div>
+        <div class="dialog-head"><div><p class="eyebrow">PUBLICAÇÃO</p><h2>Programar Reel</h2></div><button type="button" class="close" data-close aria-label="Fechar">×</button></div>
         <input type="hidden" id="scheduleContentId" />
         <label>Data e horário<input type="datetime-local" id="publishAt" required /></label>
         <div class="schedule-summary" id="scheduleSummary"></div>
@@ -739,7 +739,7 @@
       <div class="cover-shell">
         <div class="dialog-head">
           <div><p class="eyebrow">AGENTE DE CAPA</p><h2 id="coverTitle">Escolher capa</h2></div>
-          <button type="button" class="close" data-close>×</button>
+          <button type="button" class="close" data-close aria-label="Fechar">×</button>
         </div>
         <div class="cover-agent-summary" id="coverAgentSummary"></div>
         <div class="cover-candidates" id="coverCandidates"></div>
@@ -753,7 +753,7 @@
 
     <dialog id="referenceDialog">
       <form id="referenceForm">
-        <div class="dialog-head"><div><p class="eyebrow">APRENDER EDIÇÃO</p><h2>Usar um Reel como referência</h2></div><button type="button" class="close" data-close>×</button></div>
+        <div class="dialog-head"><div><p class="eyebrow">APRENDER EDIÇÃO</p><h2>Usar um Reel como referência</h2></div><button type="button" class="close" data-close aria-label="Fechar">×</button></div>
         <label>Link do Instagram<input name="url" type="url" placeholder="https://www.instagram.com/reel/..." required /></label>
         <label>Nome deste padrão<input name="title" placeholder="Opcional — ex.: Cortes rápidos com legendas verdes" /></label>
         <label>O que você mais gostou?<textarea name="notes" rows="4" placeholder="Opcional — ex.: gostei do ritmo, das legendas e das mudanças de enquadramento."></textarea></label>
@@ -769,7 +769,7 @@
       <div class="template-compare-shell">
         <div class="dialog-head">
           <div><p class="eyebrow">REFERÊNCIA × RENDER</p><h2 id="templateCompareTitle">Comparar modelo</h2></div>
-          <button type="button" class="close" data-close>×</button>
+          <button type="button" class="close" data-close aria-label="Fechar">×</button>
         </div>
         <div class="template-score-strip" id="templateScoreStrip"></div>
         <div class="template-compare-grid">

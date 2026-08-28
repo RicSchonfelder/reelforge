@@ -139,13 +139,28 @@ function readJson(request) {
     });
     request.on("end", () => {
       try {
-        resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString("utf8")) : {});
+        const parsed = chunks.length ? JSON.parse(Buffer.concat(chunks).toString("utf8")) : {};
+        const proto = Object.getPrototypeOf(parsed);
+        if (!parsed || typeof parsed !== "object" || proto !== Object.prototype) {
+          reject(new Error("JSON inválido."));
+          return;
+        }
+        resolve(parsed);
       } catch {
         reject(new Error("JSON inválido."));
       }
     });
     request.on("error", reject);
   });
+}
+
+function coerceTextFields(body, keys) {
+  for (const key of keys) {
+    if (body[key] !== undefined) {
+      body[key] = typeof body[key] === "string" ? body[key].trim() : String(body[key]).trim();
+    }
+  }
+  return body;
 }
 
 function safeFilename(filename) {
@@ -391,9 +406,26 @@ function serveLocalVideo(request, response, filePath, downloadName = null) {
     fs.createReadStream(filePath).pipe(response);
     return;
   }
-  const [startText, endText] = range.replace("bytes=", "").split("-");
-  const start = Number(startText);
-  const end = endText ? Number(endText) : Math.min(start + 2_000_000, stat.size - 1);
+  const rangeMatch = /^bytes=(\d+)-(\d*)$/.exec(range);
+  const start = rangeMatch ? Number(rangeMatch[1]) : NaN;
+  const end = rangeMatch?.[2]
+    ? Number(rangeMatch[2])
+    : Number.isNaN(start) ? NaN : Math.min(start + 2_000_000, stat.size - 1);
+  if (
+    Number.isNaN(start)
+    || Number.isNaN(end)
+    || end < start
+    || start >= stat.size
+    || end >= stat.size
+  ) {
+    // ponytail: sufixo "bytes=-N" e multi-range caem no 416; adicionar se algum player precisar.
+    response.writeHead(416, {
+      "Content-Range": `bytes */${stat.size}`,
+      "Cache-Control": "no-store",
+    });
+    response.end();
+    return;
+  }
   response.writeHead(206, {
     "Content-Type": contentType,
     "Content-Length": end - start + 1,
@@ -833,7 +865,7 @@ async function handleApi(request, response, url) {
 
   if (request.method === "POST" && url.pathname === "/api/timeline/projects") {
     try {
-      const body = await readJson(request);
+      const body = coerceTextFields(await readJson(request), ["contentId"]);
       json(response, 201, createTimelineProject(body.contentId));
     } catch (timelineError) {
       error(response, 400, timelineError.message);
@@ -938,7 +970,7 @@ async function handleApi(request, response, url) {
 
   if (request.method === "POST" && url.pathname === "/api/editor/jobs") {
     try {
-      const body = await readJson(request);
+      const body = coerceTextFields(await readJson(request), ["contentId"]);
       const content = getContent(body.contentId);
       if (!content) throw new Error("Selecione um conteúdo da esteira.");
       const sourceFile = content.rawFile || content.finalFile;
@@ -1204,7 +1236,7 @@ async function handleApi(request, response, url) {
 
   if (request.method === "POST" && url.pathname === "/api/content/from-external-editor") {
     try {
-      const body = await readJson(request);
+      const body = coerceTextFields(await readJson(request), ["title", "notes"]);
       const project = listExternalEditorProjects().find(
         (candidate) => candidate.projectId === body.projectId,
       );
@@ -1312,7 +1344,7 @@ async function handleApi(request, response, url) {
     const [, id, action] = contentMatch;
     try {
       if (request.method === "PATCH" && !action) {
-        const body = await readJson(request);
+        const body = coerceTextFields(await readJson(request), ["title", "notes", "caption"]);
         if (typeof body.transcript === "string" && body.transcript.trim()) {
           let updated = syncTranscriptCaption(id, body);
           const supplemental = { ...body };
@@ -1399,7 +1431,7 @@ async function handleApi(request, response, url) {
       }
       if (request.method === "POST" && action === "select-cover") {
         const current = getContent(id);
-        const body = await readJson(request);
+        const body = coerceTextFields(await readJson(request), ["candidateId"]);
         const coverSelection = selectCoverCandidate(
           current?.coverSelection,
           body.candidateId,
@@ -1449,7 +1481,7 @@ async function handleApi(request, response, url) {
       if (request.method === "POST" && action === "request-revision") {
         const current = getContent(id);
         if (!current) throw new Error("Conteúdo não encontrado.");
-        const body = await readJson(request);
+        const body = coerceTextFields(await readJson(request), ["instructions", "timecode"]);
         if (!body.instructions?.trim()) throw new Error("Descreva o que precisa ser reeditado.");
         json(response, 200, updateContent(id, {
           stage: "editing_requested",
@@ -1577,7 +1609,7 @@ async function handleApi(request, response, url) {
 
   if (request.method === "POST" && url.pathname === "/api/references") {
     try {
-      const reference = addReference(await readJson(request));
+      const reference = addReference(coerceTextFields(await readJson(request), ["title", "notes"]));
       const command = reference.analysisStatus === "queued"
         ? createAgentCommand(referenceAnalysisCommand(reference))
         : null;
@@ -1603,7 +1635,7 @@ async function handleApi(request, response, url) {
   }
   if (referenceMatch && request.method === "PATCH" && !referenceMatch[2]) {
     try {
-      const body = await readJson(request);
+      const body = coerceTextFields(await readJson(request), ["title", "notes"]);
       json(response, 200, updateReference(referenceMatch[1], body));
     } catch (referenceError) {
       error(response, 400, referenceError.message);
@@ -1720,6 +1752,9 @@ const server = http.createServer(async (request, response) => {
     if (serveStatic(response, url.pathname)) return;
     error(response, 404, "Página não encontrada.");
   } catch (requestError) {
+    console.error(
+      `[dashboard] ${request.method} ${request.url}: ${requestError?.stack || requestError}`,
+    );
     error(response, 500, requestError.message);
   }
 });

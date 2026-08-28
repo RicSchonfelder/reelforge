@@ -25,7 +25,7 @@ function runFfprobe(filePath, ffprobePath) {
       "json",
       filePath,
     ],
-    { encoding: "utf8", windowsHide: true },
+    { encoding: "utf8", windowsHide: true, maxBuffer: 16 * 1024 * 1024 },
   );
 
   if (result.error?.code === "ENOENT") return null;
@@ -33,7 +33,13 @@ function runFfprobe(filePath, ffprobePath) {
     throw new Error(`ffprobe não conseguiu analisar o vídeo: ${result.stderr.trim()}`);
   }
 
-  return JSON.parse(result.stdout);
+  try {
+    return JSON.parse(result.stdout);
+  } catch {
+    throw new Error(
+      `ffprobe retornou uma resposta inválida: ${result.stderr?.trim() || "saída vazia"}`,
+    );
+  }
 }
 
 export function assessReelQuality(validation) {
@@ -41,7 +47,11 @@ export function assessReelQuality(validation) {
   const errors = [...(validation?.errors || [])];
 
   if (!details.videoCodec) {
-    errors.push("Não foi possível analisar o codec e as dimensões do vídeo.");
+    errors.push(
+      details.hasVideoStream === false
+        ? "O arquivo não contém uma faixa de vídeo utilizável."
+        : "Não foi possível analisar o codec e as dimensões do vídeo.",
+    );
   } else {
     if (details.width !== 1080 || details.height !== 1920) {
       errors.push(`Alta qualidade exige 1080x1920; detectado ${details.width || "?"}x${details.height || "?"}.`);
@@ -132,6 +142,7 @@ export function validateMedia(filePath, { ffprobePath = "ffprobe" } = {}) {
     videoBitrateMbps: Number.isFinite(videoBitrate)
       ? round(videoBitrate / 1_000_000)
       : null,
+    hasVideoStream: Boolean(video),
     audioCodec: audio?.codec_name ?? null,
     audioSampleRate: audio?.sample_rate ? Number(audio.sample_rate) : null,
   });

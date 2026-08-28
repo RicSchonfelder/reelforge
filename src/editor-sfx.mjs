@@ -21,7 +21,10 @@ function writeMonoWave(filePath, duration, sampleAt) {
   }
   const wave = new WaveFile();
   wave.fromScratch(1, SAMPLE_RATE, "16", samples);
-  fs.writeFileSync(filePath, wave.toBuffer());
+  // Escrita atômica: crash no meio do write não deixa WAV truncado no disco.
+  const tempPath = `${filePath}.${process.pid}.tmp`;
+  fs.writeFileSync(tempPath, wave.toBuffer());
+  fs.renameSync(tempPath, filePath);
 }
 
 function deterministicNoise(index) {
@@ -74,10 +77,15 @@ export function resolveSfxEvents(plan, { music = false, effectiveDuration = Infi
   const files = ensureBuiltInSfx();
   return (plan?.sfx || [])
     .filter((event) => files[event.type] && Number(event.at) < effectiveDuration - 0.08)
-    .map((event, index) => ({
-      ...event,
-      path: files[event.type],
-      inputIndex: 1 + (music ? 1 : 0) + index,
-      volume: Number(event.volume ?? event.gain ?? (event.type === "impact" ? 0.42 : 0.3)),
-    }));
+    .map((event, index) => {
+      const fallbackVolume = event.type === "impact" ? 0.42 : 0.3;
+      const rawVolume = Number(event.volume ?? event.gain);
+      return {
+        ...event,
+        path: files[event.type],
+        inputIndex: 1 + (music ? 1 : 0) + index,
+        at: Math.max(0, Number(event.at) || 0),
+        volume: Math.min(1.5, Math.max(0.05, Number.isFinite(rawVolume) ? rawVolume : fallbackVolume)),
+      };
+    });
 }

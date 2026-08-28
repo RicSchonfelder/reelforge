@@ -16,6 +16,8 @@ import {
 
 const activeBatches = new Set();
 
+const MAX_PIECE_BYTES = 1024 * 1024 * 1024;
+
 // Normalização de peças em andamento: evita dois lotes rodando ffmpeg -y
 // no mesmo normalized/{id}.mp4 (corrupção/EPERM no Windows).
 const normalizingPieces = new Map();
@@ -70,6 +72,12 @@ function runProcess(executable, args, { timeoutMs = 30 * 60_000 } = {}) {
 }
 
 export function probeCreativeMedia(filePath) {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Arquivo da peça não encontrado: ${filePath}`);
+  }
+  if (fs.statSync(filePath).size > MAX_PIECE_BYTES) {
+    throw new Error("A peça ultrapassa o limite de 1 GB por arquivo.");
+  }
   const result = spawnSync(
     ffprobeStatic.path,
     [
@@ -86,7 +94,14 @@ export function probeCreativeMedia(filePath) {
   if (result.status !== 0) {
     throw new Error(`Não foi possível analisar a peça: ${result.stderr?.trim() || "erro desconhecido"}`);
   }
-  const probe = JSON.parse(result.stdout);
+  let probe;
+  try {
+    probe = JSON.parse(result.stdout);
+  } catch {
+    throw new Error(
+      `ffprobe retornou uma resposta inválida para a peça: ${result.stderr?.trim() || "saída vazia"}`,
+    );
+  }
   const video = probe.streams?.find((stream) => stream.codec_type === "video");
   const audio = probe.streams?.find((stream) => stream.codec_type === "audio");
   const durationSeconds = Number(probe.format?.duration);

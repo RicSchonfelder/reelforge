@@ -24,6 +24,7 @@
   agent: { messages: [], commands: [], counts: {}, safeguards: {} },
   view: "overview",
   filter: "all",
+  calendarOffset: 0,
   coverContentId: null,
 };
 
@@ -230,11 +231,19 @@ function go(view) {
   state.view = view;
   document.body.classList.toggle("editor-mode", view === "editor");
   $$(".view").forEach((element) => element.classList.toggle("active", element.id === `view-${view}`));
-  $$(".nav-item").forEach((element) => element.classList.toggle("active", element.dataset.view === view));
+  $$(".nav-item").forEach((element) => {
+    const active = element.dataset.view === view;
+    element.classList.toggle("active", active);
+    if (active) element.setAttribute("aria-current", "page");
+    else element.removeAttribute("aria-current");
+  });
   const names = { overview: "Visão geral", content: "Conteúdos", agent: "Falar com o agente", editor: "Editor IA", matrix: "Matriz de Criativos", calendar: "Agenda", insights: "Insights", references: "Referências", "external-editor": "Editor Externo ao vivo" };
   $("#pageTitle").textContent = names[view];
   $("#openUpload").hidden = ["agent", "editor", "matrix"].includes(view);
-  if (view === "calendar") renderCalendar();
+  if (view === "calendar") {
+    state.calendarOffset = 0;
+    renderCalendar();
+  }
   if (view === "agent") renderAgentChat();
   if (view === "editor") renderEditor();
   if (view === "matrix") renderMatrix();
@@ -508,14 +517,15 @@ function renderInsights() {
 }
 
 function renderCalendar() {
-  const now = new Date();
-  $("#calendarMonth").textContent = formatDate(now, { month: "long", year: "numeric" });
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const today = new Date();
+  const view = new Date(today.getFullYear(), today.getMonth() + state.calendarOffset, 1);
+  $("#calendarMonth").textContent = formatDate(view, { month: "long", year: "numeric" });
+  const first = view;
+  const days = new Date(view.getFullYear(), view.getMonth() + 1, 0).getDate();
   const scheduledDays = new Set(
     state.overview.upcoming
       .map((job) => new Date(job.publishAt))
-      .filter((date) => date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear())
+      .filter((date) => date.getMonth() === view.getMonth() && date.getFullYear() === view.getFullYear())
       .map((date) => date.getDate()),
   );
   const headers = ["D", "S", "T", "Q", "Q", "S", "S"].map((day) => `<div class="calendar-day head">${day}</div>`).join("");
@@ -751,7 +761,7 @@ function renderAgentChat() {
       </article>
     `;
   }).join("");
-  if (shouldStickToBottom || state.view === "agent") messages.scrollTop = messages.scrollHeight;
+  if (shouldStickToBottom) messages.scrollTop = messages.scrollHeight;
 
   const active = agent.activeCommand;
   $("#agentCurrentOperation").innerHTML = active ? `
@@ -1668,6 +1678,10 @@ document.addEventListener("click", async (event) => {
   if (!target) return;
   if (target.matches("[data-view]")) go(target.dataset.view);
   if (target.matches("[data-go]")) go(target.dataset.go);
+  if (target.matches("[data-calendar-nav]")) {
+    state.calendarOffset += target.dataset.calendarNav === "next" ? 1 : -1;
+    renderCalendar();
+  }
   if (target.matches("[data-studio-tab]")) {
     setStudioTab(target.dataset.studioTab);
   }
