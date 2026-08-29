@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { dataRoot, getConfig } from "./env.mjs";
 import { getDueJobs, updateJob } from "./queue.mjs";
+import { notifyEvent } from "./notify.mjs";
 import { processJob } from "./publisher.mjs";
 
 const lockPath = path.join(dataRoot, "scheduler.lock");
@@ -71,13 +72,20 @@ async function tick() {
         );
       } catch (jobError) {
         // Falha inesperada em um job não pode derrubar o daemon.
+        const mensagem = jobError?.message || jobError;
         console.error(
-          `[${new Date().toISOString()}] ${job.id}: erro inesperado: ${jobError?.message || jobError}`,
+          `[${new Date().toISOString()}] ${job.id}: erro inesperado: ${mensagem}`,
         );
+        notifyEvent({
+          type: "failed",
+          jobId: job.id,
+          title: job?.filePath ? path.basename(job.filePath) : undefined,
+          detail: mensagem,
+        }).catch(() => {});
         try {
           updateJob(job.id, {
             status: "failed",
-            error: `Erro inesperado no agendador: ${jobError?.message || jobError}`,
+            error: `Erro inesperado no agendador: ${mensagem}`,
           });
         } catch {
           // fila indisponível: registra e segue

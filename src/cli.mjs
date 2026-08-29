@@ -62,6 +62,24 @@ async function main() {
     console.log(`IG_ACCESS_TOKEN: ${config.accessToken ? "configurado" : "ausente"}`);
     console.log(`META_API_VERSION: ${config.apiVersion}`);
 
+    if (config.igUserId && config.accessToken) {
+      try {
+        const tokenResponse = await fetch(
+          `https://graph.instagram.com/${config.apiVersion}/${config.igUserId}?fields=id`,
+          {
+            headers: { Authorization: `Bearer ${config.accessToken}` },
+            signal: AbortSignal.timeout(15000),
+          },
+        );
+        const tokenPayload = await tokenResponse.json().catch(() => ({}));
+        console.log(tokenResponse.ok
+          ? `token: válido (conta ${tokenPayload.id || config.igUserId})`
+          : `token: inválido — ${tokenPayload?.error?.message || `HTTP ${tokenResponse.status}`}`);
+      } catch {
+        console.log("token: não foi possível verificar (rede)");
+      }
+    }
+
     const ffprobePath = config.ffprobePath === "ffprobe" ? ffprobeStatic.path : config.ffprobePath;
     const ffprobeOk = Boolean(ffprobePath) && fs.existsSync(ffprobePath);
     console.log(`ffprobe (${ffprobePath}): ${ffprobeOk ? "ok" : "ausente"}`);

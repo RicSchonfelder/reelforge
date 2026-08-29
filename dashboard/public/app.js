@@ -95,16 +95,19 @@ function toast(message, isError = false) {
 }
 
 async function api(path, options = {}) {
+  const token = String(localStorage.getItem("reelforgeToken") || "").trim();
   const response = await fetch(path, {
     ...options,
     headers: {
       // Identifica o cliente Reelforge: o servidor rejeita mutações sem este
       // header (bloqueia envios cross-origin de formulários, anti-CSRF).
       "X-Reelforge-Client": "1",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
       ...options.headers,
     },
   });
+  if (response.status === 401) promptTokenOnce();
   const text = await response.text();
   let payload;
   try {
@@ -118,6 +121,22 @@ async function api(path, options = {}) {
   }
   if (!response.ok) throw new Error(payload.error || "Não foi possível concluir.");
   return payload;
+}
+
+let tokenPromptedOnce = false;
+
+function promptTokenOnce() {
+  if (tokenPromptedOnce) return;
+  tokenPromptedOnce = true;
+  toast("Token de API ausente ou inválido. Informe o REELFORGE_TOKEN para continuar.", true);
+  openTokenDialog();
+}
+
+function openTokenDialog() {
+  const dialog = $("#tokenDialog");
+  if (!dialog) return;
+  $("#tokenInput").value = localStorage.getItem("reelforgeToken") || "";
+  if (!dialog.open) dialog.showModal();
 }
 
 function formatDate(value, options = {}) {
@@ -2072,6 +2091,13 @@ document.addEventListener("click", async (event) => {
     } catch (error) { toast(error.message, true); }
   }
   if (target.matches("#openReference")) $("#referenceDialog").showModal();
+  if (target.matches("#openTokenDialog")) openTokenDialog();
+  if (target.matches("#tokenRemove")) {
+    localStorage.removeItem("reelforgeToken");
+    $("#tokenInput").value = "";
+    $("#tokenDialog").close();
+    toast("Token removido deste navegador.");
+  }
   if (target.matches(".analyze-reference")) {
     target.disabled = true;
     try {
@@ -2593,6 +2619,19 @@ $("#uploadForm").addEventListener("submit", async (event) => {
 });
 
 $("#publishAt").addEventListener("change", updateScheduleSummary);
+
+$("#tokenForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const token = $("#tokenInput").value.trim();
+  if (!token) {
+    toast("Cole o valor de REELFORGE_TOKEN para salvar.", true);
+    return;
+  }
+  localStorage.setItem("reelforgeToken", token);
+  $("#tokenDialog").close();
+  toast("Token salvo neste navegador. Revalidando a conexão…");
+  await loadOverview().catch((error) => toast(error.message, true));
+});
 
 $("#scheduleForm").addEventListener("submit", async (event) => {
   event.preventDefault();

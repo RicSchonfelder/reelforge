@@ -23,6 +23,11 @@ const REEL_METRICS = [
   "ig_reels_video_view_total_time",
   "reels_skip_rate",
 ];
+const MEDIA_FIELDS =
+  "id,caption,media_type,media_product_type,permalink,timestamp,like_count,comments_count,thumbnail_url,media_url";
+const MEDIA_PAGE_SIZE = 30;
+const MEDIA_MAX_POSTS = 90;
+const MEDIA_MAX_PAGES = 10;
 const BRAZIL_TIME_ZONE = "America/Sao_Paulo";
 
 const TOPIC_GROUPS = [
@@ -66,7 +71,25 @@ function readCache() {
 
 function writeCache(value) {
   fs.mkdirSync(path.dirname(cachePath), { recursive: true });
-  fs.writeFileSync(cachePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  // Escrita atômica (mesmo padrão dos outros stores): evita cache corrompido
+  // se o processo cair no meio da gravação.
+  const temporary = `${cachePath}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  fs.renameSync(temporary, cachePath);
+}
+
+const REQUEST_TIMEOUT_MS = 15_000;
+
+function toInstagramError(error) {
+  if (
+    error?.name === "AbortError" ||
+    error?.name === "TimeoutError" ||
+    error?.cause?.name === "AbortError" ||
+    error?.cause?.name === "TimeoutError"
+  ) {
+    return new Error("Tempo esgotado consultando o Instagram.");
+  }
+  return error;
 }
 
 async function request(pathname, token) {
@@ -74,6 +97,9 @@ async function request(pathname, token) {
   const fetchOnce = async () =>
     fetch(`https://graph.instagram.com/${config.apiVersion}${pathname}`, {
       headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    }).catch((error) => {
+      throw toInstagramError(error);
     });
   let response = await fetchOnce();
   // Rate limit da Meta (HTTP 429 ou error code 4/#80004): espera e tenta uma vez.
@@ -95,6 +121,38 @@ async function request(pathname, token) {
     );
   }
   return payload;
+}
+
+// Percorre as páginas de /media seguindo data.paging.next (cursor "after"
+// embutido na URL) ou paging.cursors.after, até coletar no máximo
+// MEDIA_MAX_POSTS posts ou acabar as páginas.
+async function fetchAllMedia(igUserId, token) {
+  const basePath = `/${igUserId}/media`;
+  const media = [];
+  let after = null;
+  for (
+    let page = 0;
+    page < MEDIA_MAX_PAGES && media.length < MEDIA_MAX_POSTS;
+    page += 1
+  ) {
+    const query = `fields=${MEDIA_FIELDS}&limit=${MEDIA_PAGE_SIZE}${
+      after ? `&after=${encodeURIComponent(after)}` : ""
+    }`;
+    const payload = await request(`${basePath}?${query}`, token);
+    const batch = Array.isArray(payload?.data) ? payload.data : [];
+    media.push(...batch);
+    let nextAfter = null;
+    if (payload?.paging?.next) {
+      try {
+        nextAfter = new URL(payload.paging.next).searchParams.get("after");
+      } catch {
+        nextAfter = null;
+      }
+    }
+    after = nextAfter || payload?.paging?.cursors?.after || null;
+    if (!after || !batch.length) break;
+  }
+  return media.slice(0, MEDIA_MAX_POSTS);
 }
 
 function number(value) {
@@ -442,12 +500,9 @@ export async function getInstagramInsights({ force = false } = {}) {
     `/${config.igUserId}?fields=id,username,account_type,profile_picture_url,followers_count,media_count`,
     config.accessToken,
   );
-  const mediaPayload = await request(
-    `/${config.igUserId}/media?fields=id,caption,media_type,media_product_type,permalink,timestamp,like_count,comments_count,thumbnail_url,media_url&limit=30`,
-    config.accessToken,
-  );
+  const mediaItems = await fetchAllMedia(config.igUserId, config.accessToken);
   const media = await mapWithConcurrency(
-    mediaPayload.data || [],
+    mediaItems,
     5,
     async (item) => ({ ...item, ...(await fetchMediaMetrics(item, config.accessToken)) }),
   );

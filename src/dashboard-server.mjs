@@ -102,6 +102,7 @@ import {
   assessTranscriptQuality,
   segmentsFromWords,
 } from "./transcript-quality.mjs";
+import { runRetentionSweep } from "./retention.mjs";
 
 const PORT = Number(process.env.DASHBOARD_PORT || 4170);
 const HOST = process.env.DASHBOARD_HOST || "127.0.0.1";
@@ -122,6 +123,16 @@ function json(response, status, payload) {
 
 function error(response, status, message) {
   json(response, status, { error: message });
+}
+
+function pipeStreamToResponse(stream, response, route, filePath) {
+  stream.on("error", (streamError) => {
+    console.error(
+      `[dashboard] ${route}: falha ao transmitir "${filePath}": ${streamError?.message || streamError}`,
+    );
+    response.destroy(streamError);
+  });
+  stream.pipe(response);
 }
 
 function readJson(request) {
@@ -379,7 +390,7 @@ function serveStatic(response, pathname) {
     "Content-Type": types[path.extname(filePath)] || "application/octet-stream",
     "Cache-Control": "no-cache",
   });
-  fs.createReadStream(filePath).pipe(response);
+  pipeStreamToResponse(fs.createReadStream(filePath), response, pathname, filePath);
   return true;
 }
 
@@ -403,7 +414,7 @@ function serveLocalVideo(request, response, filePath, downloadName = null) {
       "Accept-Ranges": "bytes",
       ...disposition,
     });
-    fs.createReadStream(filePath).pipe(response);
+    pipeStreamToResponse(fs.createReadStream(filePath), response, request.url, filePath);
     return;
   }
   const rangeMatch = /^bytes=(\d+)-(\d*)$/.exec(range);
@@ -433,7 +444,12 @@ function serveLocalVideo(request, response, filePath, downloadName = null) {
     "Accept-Ranges": "bytes",
     ...disposition,
   });
-  fs.createReadStream(filePath, { start, end }).pipe(response);
+  pipeStreamToResponse(
+    fs.createReadStream(filePath, { start, end }),
+    response,
+    request.url,
+    filePath,
+  );
 }
 
 function serveMedia(request, response, id, kind) {
@@ -483,8 +499,7 @@ function serveCreativeBatchZip(response, batchId) {
     "Cache-Control": "no-store",
   });
   const archive = new ZipArchive({ zlib: { level: 0 } });
-  archive.on("error", (archiveError) => response.destroy(archiveError));
-  archive.pipe(response);
+  pipeStreamToResponse(archive, response, "/creative-download", `lote ${batchId}`);
   for (const combination of ready) {
     archive.file(combination.outputFile.path, { name: combination.outputFile.name });
   }
@@ -1710,7 +1725,7 @@ const server = http.createServer(async (request, response) => {
         "Content-Length": fs.statSync(coverPath).size,
         "Cache-Control": "private, max-age=3600",
       });
-      fs.createReadStream(coverPath).pipe(response);
+      pipeStreamToResponse(fs.createReadStream(coverPath), response, url.pathname, coverPath);
       return;
     }
     const creativePieceMediaMatch = url.pathname.match(/^\/creative-media\/pieces\/([^/]+)$/);
@@ -1785,6 +1800,17 @@ server.listen(PORT, HOST, () => {
 const intervalMs = Math.max(5, getConfig().schedulerIntervalSeconds) * 1000;
 recoverInterruptedBatches();
 cleanupTempDirectories();
+try {
+  const retention = runRetentionSweep({
+    appRoot,
+    days: getConfig().retentionDays ?? Number(process.env.RETENTION_DAYS ?? 14),
+  });
+  console.log(
+    `[retention] varredura inicial: ${retention.removedFiles} arquivo(s) removido(s), ${retention.removedBytes} byte(s) liberados`,
+  );
+} catch (retentionError) {
+  console.error(`[retention] varredura inicial falhou: ${retentionError?.message || retentionError}`);
+}
 if (!schedulerDisabled) {
   recoverInterruptedJobs();
   await schedulerTick();

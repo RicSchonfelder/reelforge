@@ -1691,3 +1691,9 @@ body.editor-mode #view-editor.active { display: block; height: 100vh; animation:
   .studio-viewer-panel { min-height: 700px; }
   .studio-timeline-dock { min-height: 220px; }
 }
+
+.token-foot-button { margin-top: 12px; padding: 0; border: 0; color: var(--muted); background: transparent; font-size: 12px; font-weight: 600; text-align: left; text-decoration: underline dotted rgba(138, 118, 99, .55); text-underline-offset: 3px; cursor: pointer; transition: .18s ease; }
+.token-foot-button:hover { color: var(--coffee); }
+#tokenDialog .helper-copy { margin: 0 0 14px; font-size: 13px; }
+#tokenDialog input { border: 1px solid var(--line); color: var(--text); background: var(--surface); font-family: ui-monospace, "Cascadia Mono", monospace; letter-spacing: .02em; }
+#tokenDialog input:focus { border-color: var(--coffee); box-shadow: 0 0 0 3px rgba(111, 78, 55, .12); }

@@ -58,6 +58,7 @@ export function getConfig({ requireCredentials = false } = {}) {
     schedulerIntervalSeconds: Number(env.SCHEDULER_INTERVAL_SECONDS || 15),
     autoScheduleEnabled: env.AUTO_SCHEDULE_ENABLED?.trim().toLowerCase() !== "false",
     dailyPostLimit,
+    retentionDays: Number(env.RETENTION_DAYS || 14),
     postingSlots,
     timeZone: env.POSTING_TIME_ZONE?.trim() || "America/Sao_Paulo",
     cloudflaredPath: env.CLOUDFLARED_PATH?.trim() || "",
@@ -72,6 +73,10 @@ export function getConfig({ requireCredentials = false } = {}) {
 
   if (!Number.isInteger(config.dailyPostLimit) || config.dailyPostLimit < 1 || config.dailyPostLimit > 25) {
     throw new Error("DAILY_POST_LIMIT deve ser um número inteiro entre 1 e 25.");
+  }
+
+  if (!Number.isInteger(config.retentionDays) || config.retentionDays < 0) {
+    throw new Error("RETENTION_DAYS deve ser um número inteiro maior ou igual a 0.");
   }
 
   if (requireCredentials) {

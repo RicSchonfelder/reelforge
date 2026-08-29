@@ -43,6 +43,7 @@
         <div class="sidebar-foot">
           <div class="system-line"><i id="schedulerDot"></i><span id="schedulerLabel">Agendador iniciando</span></div>
           <small>Os dados ficam neste computador.</small>
+          <button type="button" class="token-foot-button" id="openTokenDialog">Token de API</button>
         </div>
       </aside>
 
@@ -788,6 +789,21 @@
           <button type="button" class="button primary" id="runTemplateTest">✦ Gerar teste de 16s</button>
         </div>
       </div>
+    </dialog>
+
+    <dialog id="tokenDialog">
+      <form id="tokenForm">
+        <div class="dialog-head"><div><p class="eyebrow">SEGURANÇA</p><h2>Token de API</h2></div><button type="button" class="close" data-close aria-label="Fechar">×</button></div>
+        <small class="helper-copy">Use apenas quando o painel roda com DASHBOARD_HOST em 0.0.0.0 e REELFORGE_TOKEN definido no .env. O token fica salvo somente neste navegador.</small>
+        <label>Token de API
+          <input type="password" id="tokenInput" placeholder="cole o valor de REELFORGE_TOKEN" autocomplete="off" spellcheck="false" />
+        </label>
+        <div class="dialog-actions">
+          <button type="button" class="button ghost" id="tokenRemove">Remover</button>
+          <button type="button" class="button ghost" data-close>Cancelar</button>
+          <button type="submit" class="button primary">Salvar</button>
+        </div>
+      </form>
     </dialog>
 
     <div class="toast" id="toast" role="status"></div>
