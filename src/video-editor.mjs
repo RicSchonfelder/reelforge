@@ -581,14 +581,14 @@ export async function renderEditorJob(jobId) {
     });
     // Prévias existem para comparar modelos rapidamente: não passam pelo gate
     // do plano editorial (o gate real roda na versão final, que é publicada).
-    if (!job.settings.previewMode) {
-      const editorialQuality = assessEditorialPlan(editorialPlan, {
+    const editorialQuality = job.settings.previewMode
+      ? { ok: true, issues: [], mode: "preview" }
+      : assessEditorialPlan(editorialPlan, {
         duration: effectiveDuration,
         templateMode: job.settings.templateMode,
       });
-      if (!editorialQuality.ok) {
-        throw new Error(`A renderização foi bloqueada: ${editorialQuality.issues.join(", ")}.`);
-      }
+    if (!editorialQuality.ok) {
+      throw new Error(`A renderização foi bloqueada: ${editorialQuality.issues.join(", ")}.`);
     }
 
     job = getEditorJob(jobId);
