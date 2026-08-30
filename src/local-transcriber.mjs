@@ -215,13 +215,32 @@ async function transcribeContent(contentId, modelKey = "fast") {
       transcriptProgress: 0.45,
     });
     const audio = readAudioSamples(wavPath);
-    const raw = await transcriber(audio, {
+    const asrOptions = {
       language: "portuguese",
       task: "transcribe",
       chunk_length_s: 30,
       stride_length_s: 5,
-      return_timestamps: "word",
-    });
+    };
+    let syncMode = "word-timestamps";
+    let raw;
+    try {
+      raw = await transcriber(audio, { ...asrOptions, return_timestamps: "word" });
+    } catch (wordTimestampError) {
+      // Exportações ONNX quantizadas nem sempre incluem cross-attentions
+      // (necessárias para timestamps por palavra). Fallback: timestamps por
+      // chunk — o texto mantém a precisão do modelo; os tempos das palavras
+      // são interpolados dentro de cada chunk.
+      if (!/timestamp|attention/i.test(wordTimestampError.message || "")) {
+        throw wordTimestampError;
+      }
+      syncMode = "chunk-timestamps";
+      updateContent(contentId, {
+        transcriptStatus: "transcribing",
+        transcriptProgress: 0.45,
+        transcriptError: null,
+      });
+      raw = await transcriber(audio, { ...asrOptions, return_timestamps: true });
+    }
     const normalized = normalizeTranscriptResult(raw);
     const correctionResult = applyDomainCorrections(normalized.words);
     const words = correctionResult.words;
@@ -237,7 +256,7 @@ async function transcribeContent(contentId, modelKey = "fast") {
     const transcriptQuality = {
       modelId: profile.id,
       modelDtype: profile.dtype,
-      syncMode: "word-timestamps",
+      syncMode,
       wordCount: words.length,
       audioDuration: audio.length / 16000,
       timestampCoverage: words.length
