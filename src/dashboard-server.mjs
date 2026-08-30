@@ -85,6 +85,7 @@ import {
 } from "./video-editor.mjs";
 import {
   localTranscriptionOverview,
+  recoverInterruptedTranscriptions,
   startLocalTranscription,
 } from "./local-transcriber.mjs";
 import {
@@ -1800,6 +1801,10 @@ server.listen(PORT, HOST, () => {
 const intervalMs = Math.max(5, getConfig().schedulerIntervalSeconds) * 1000;
 recoverInterruptedBatches();
 cleanupTempDirectories();
+const recoveredTranscriptions = recoverInterruptedTranscriptions();
+if (recoveredTranscriptions > 0) {
+  console.log(`[transcription] ${recoveredTranscriptions} transcrição(ões) interrompida(s) voltaram para a fila`);
+}
 try {
   const retention = runRetentionSweep({
     appRoot,

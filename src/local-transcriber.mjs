@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import ffmpegPath from "ffmpeg-static";
 import wavefile from "wavefile";
 import { appRoot } from "./env.mjs";
-import { getContent, updateContent } from "./content-store.mjs";
+import { getContent, loadContentState, updateContent } from "./content-store.mjs";
 import {
   applyDomainCorrections,
   assessTranscriptQuality,
@@ -299,6 +299,39 @@ export function startLocalTranscription(contentId, { force = false } = {}) {
     runQueue().catch(() => {});
   }, 0);
   return getContent(contentId);
+}
+
+/**
+ * A fila de transcrição vive em memória: se o processo reiniciar no meio
+ * (deploy, crash, container recriado), os itens ficam presos em
+ * "transcribing" para sempre. No boot, reenfileira quem tem vídeo disponível
+ * e marca falha para quem não tem.
+ */
+export function recoverInterruptedTranscriptions() {
+  const stuckStatuses = new Set(["queued", "preparing", "loading_model", "transcribing"]);
+  const state = loadContentState();
+  const toRequeue = [];
+  for (const item of state.items) {
+    if (!stuckStatuses.has(item.transcriptStatus)) continue;
+    const source = item.rawFile?.path || item.finalFile?.path;
+    if (source && fs.existsSync(source)) {
+      toRequeue.push(item.id);
+    } else {
+      updateContent(item.id, {
+        transcriptStatus: "failed",
+        transcriptProgress: 0,
+        transcriptError: "O processo foi reiniciado e o vídeo não está mais disponível.",
+      });
+    }
+  }
+  for (const id of toRequeue) {
+    try {
+      startLocalTranscription(id, { force: true });
+    } catch {
+      // item removido concorrentemente: segue
+    }
+  }
+  return toRequeue.length;
 }
 
 export function localTranscriptionOverview() {

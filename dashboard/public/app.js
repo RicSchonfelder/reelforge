@@ -809,7 +809,7 @@ function renderAgentChat() {
     ? "var(--danger)"
     : running
       ? "var(--blue)"
-      : "var(--lime)";
+      : "var(--coffee)";
 }
 
 function editorStatusLabel(job) {
@@ -1420,8 +1420,10 @@ function renderEditor() {
 function renderAll() {
   const scheduler = state.overview.scheduler;
   $("#schedulerLabel").textContent = scheduler.busy ? "Publicando agora" : "Agendador ativo";
-  $("#schedulerDot").style.background = scheduler.active ? "var(--lime)" : "var(--danger)";
-  $("#accountDot").style.background = state.overview.account.connected ? "var(--lime)" : "var(--danger)";
+  $("#schedulerDot").style.background = scheduler.active ? "var(--coffee)" : "var(--danger)";
+  $("#accountDot").style.background = state.overview.account.connected ? "var(--coffee)" : "var(--danger)";
+  const handle = state.overview.account?.username;
+  if (handle) $("#accountHandle").textContent = `@${handle}`;
   renderEditingPresetOptions();
   renderMetrics();
   renderAutoSchedule();

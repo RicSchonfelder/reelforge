@@ -102,12 +102,15 @@ export class InstagramClient {
         duplex: "half",
       });
     } catch (error) {
+      // Sem o destroy, o ReadStream fica com handle aberto quando o fetch falha.
+      stream.destroy();
       throw new MetaApiError(
         `A conexão caiu durante o envio: ${error.message}. O trabalho foi pausado para evitar publicação duplicada.`,
         { ambiguous: true },
       );
     }
 
+    if (!response.ok) stream.destroy();
     return parseResponse(response);
   }
 

@@ -18,7 +18,7 @@ code() { curl -s -o /tmp/reelforge-smoke.out -w "%{http_code}" "$@"; }
 
 check "GET /api/overview" 200 "$(code "$BASE/api/overview")"
 check "POST /api/agent/chat sem header (anti-CSRF)" 403 "$(code -X POST "$BASE/api/agent/chat" -H 'Content-Type: application/json' -d '{"message":"teste csrf"}')"
-check "POST /api/agent/chat com header" 201 "$(code -X POST "$BASE/api/agent/chat" -H 'Content-Type: application/json' -H 'X-Reelforge-Client: 1' -d '{"message":"Verifique se ha novos videos no editor externo"}')"
+check "POST /api/agent/chat com header" 201 "$(code -X POST "$BASE/api/agent/chat" -H 'Content-Type: application/json' -H 'X-Reelforge-Client: 1' -d '{"message":"[smoke] validacao automatica - ignore"}')"
 check "POST com JSON array (rejeitado)" 400 "$(code -X POST "$BASE/api/agent/chat" -H 'Content-Type: application/json' -H 'X-Reelforge-Client: 1' -d '[1,2,3]')"
 check "POST com corpo vazio" 400 "$(code -X POST "$BASE/api/agent/chat" -H 'Content-Type: application/json' -H 'X-Reelforge-Client: 1' -d '{}')"
 check "GET /api/insights sem credenciais" 502 "$(code "$BASE/api/insights")"
