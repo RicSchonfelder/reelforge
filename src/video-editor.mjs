@@ -182,6 +182,10 @@ function writeAssFile(job, effectiveDuration, settings, captionResult, editorial
   );
   const cues = captionResult?.cues || [];
   const graphicWindows = editorialPlan?.graphics || [];
+  // Bahnschrift/Georgia só existem no Windows; no Linux caem no fallback do
+  // libass sem controle. Escolha explícita por plataforma mantém o visual.
+  const uiFont = process.platform === "win32" ? "Bahnschrift" : "DejaVu Sans";
+  const serifFont = process.platform === "win32" ? "Georgia" : "DejaVu Serif";
   const lines = [
     "[Script Info]",
     "ScriptType: v4.00+",
@@ -192,14 +196,14 @@ function writeAssFile(job, effectiveDuration, settings, captionResult, editorial
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Caption,Bahnschrift,${captionFontSize},${assColor("#FFFFFF")},${assColor("#FFFFFF")},${assColor("#000000")},${assColor("#000000", "35")},-1,0,0,0,100,100,0,0,3,4,0,2,80,80,620,1`,
-    `Style: Kinetic,Bahnschrift,${captionFontSize},${assColor("#FFFFFF")},${assColor("#FFFFFF")},${assColor("#000000")},${assColor("#000000", "00")},-1,0,0,0,100,100,0,0,1,3,0,5,70,70,0,1`,
-    `Style: KineticImpact,Bahnschrift,88,${assColor(accent)},${assColor(accent)},${assColor("#000000")},${assColor("#000000", "00")},-1,0,0,0,100,100,-1,0,1,2,0,5,55,55,0,1`,
-    `Style: Manifesto,Georgia,92,${assColor("#FFFFFF")},${assColor("#FFFFFF")},${assColor("#000000")},${assColor("#000000", "00")},-1,-1,0,0,100,100,0,0,1,0,0,5,60,60,0,1`,
-    `Style: GraphicAccent,Bahnschrift,52,${assColor(accent)},${assColor(accent)},${assColor("#07110E")},${assColor("#07110E", "00")},-1,0,0,0,100,100,0,0,1,0,0,5,70,70,0,1`,
-    `Style: GraphicPill,Bahnschrift,62,${assColor("#FFFFFF")},${assColor("#FFFFFF")},${assColor("#17352B")},${assColor("#07110E", "30")},-1,0,0,0,100,100,0,0,3,3,0,5,90,90,0,1`,
-    `Style: Headline,Bahnschrift,${headlineFontSize},${assColor("#000000")},${assColor("#000000")},${assColor(accent)},${assColor(accent)},-1,0,0,0,100,100,1,0,3,2,0,8,70,70,150,1`,
-    `Style: CTA,Bahnschrift,70,${assColor("#000000")},${assColor("#000000")},${assColor(accent)},${assColor(accent)},-1,0,0,0,100,100,0,0,3,3,0,5,90,90,0,1`,
+    `Style: Caption,${uiFont},${captionFontSize},${assColor("#FFFFFF")},${assColor("#FFFFFF")},${assColor("#000000")},${assColor("#000000", "35")},-1,0,0,0,100,100,0,0,3,4,0,2,80,80,620,1`,
+    `Style: Kinetic,${uiFont},${captionFontSize},${assColor("#FFFFFF")},${assColor("#FFFFFF")},${assColor("#000000")},${assColor("#000000", "00")},-1,0,0,0,100,100,0,0,1,3,0,5,70,70,0,1`,
+    `Style: KineticImpact,${uiFont},88,${assColor(accent)},${assColor(accent)},${assColor("#000000")},${assColor("#000000", "00")},-1,0,0,0,100,100,-1,0,1,2,0,5,55,55,0,1`,
+    `Style: Manifesto,${serifFont},92,${assColor("#FFFFFF")},${assColor("#FFFFFF")},${assColor("#000000")},${assColor("#000000", "00")},-1,-1,0,0,100,100,0,0,1,0,0,5,60,60,0,1`,
+    `Style: GraphicAccent,${uiFont},52,${assColor(accent)},${assColor(accent)},${assColor("#07110E")},${assColor("#07110E", "00")},-1,0,0,0,100,100,0,0,1,0,0,5,70,70,0,1`,
+    `Style: GraphicPill,${uiFont},62,${assColor("#FFFFFF")},${assColor("#FFFFFF")},${assColor("#17352B")},${assColor("#07110E", "30")},-1,0,0,0,100,100,0,0,3,3,0,5,90,90,0,1`,
+    `Style: Headline,${uiFont},${headlineFontSize},${assColor("#000000")},${assColor("#000000")},${assColor(accent)},${assColor(accent)},-1,0,0,0,100,100,1,0,3,2,0,8,70,70,150,1`,
+    `Style: CTA,${uiFont},70,${assColor("#000000")},${assColor("#000000")},${assColor(accent)},${assColor(accent)},-1,0,0,0,100,100,0,0,3,3,0,5,90,90,0,1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
