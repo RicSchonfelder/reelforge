@@ -31,6 +31,21 @@ test("planEditorialMoments degrada para plano vazio fora dos modos dinâmicos", 
   assert.equal(plan.graphics.length, 0);
 });
 
+test("assessEditorialPlan escala os mínimos com vídeos curtos", () => {
+  // Um Reel de 10s com 1 zoom e 1 gráfico é aceitável (não exige densidade de 60s).
+  const short = assessEditorialPlan(
+    { zooms: [{}], graphics: [{}], sfx: [{}], flashes: [] },
+    { duration: 10, templateMode: "fluxo-padrao" },
+  );
+  assert.equal(short.ok, true);
+  // Aos 40s os mínimos originais continuam valendo.
+  const full = assessEditorialPlan(
+    { zooms: [{}], graphics: [{}], sfx: [{}], flashes: [] },
+    { duration: 40, templateMode: "fluxo-padrao" },
+  );
+  assert.equal(full.ok, false);
+});
+
 test("zoomPanExpression sanitiza entrada hostil", () => {
   const expression = zoomPanExpression([
     { start: "x'; cat /etc/passwd", end: NaN, magnification: "<script>" },

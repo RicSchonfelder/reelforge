@@ -579,12 +579,16 @@ export async function renderEditorJob(jobId) {
       duration: effectiveDuration,
       templateMode: job.settings.templateMode,
     });
-    const editorialQuality = assessEditorialPlan(editorialPlan, {
-      duration: effectiveDuration,
-      templateMode: job.settings.templateMode,
-    });
-    if (!editorialQuality.ok) {
-      throw new Error(`A renderização foi bloqueada: ${editorialQuality.issues.join(", ")}.`);
+    // Prévias existem para comparar modelos rapidamente: não passam pelo gate
+    // do plano editorial (o gate real roda na versão final, que é publicada).
+    if (!job.settings.previewMode) {
+      const editorialQuality = assessEditorialPlan(editorialPlan, {
+        duration: effectiveDuration,
+        templateMode: job.settings.templateMode,
+      });
+      if (!editorialQuality.ok) {
+        throw new Error(`A renderização foi bloqueada: ${editorialQuality.issues.join(", ")}.`);
+      }
     }
 
     job = getEditorJob(jobId);

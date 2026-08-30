@@ -144,8 +144,12 @@ export function assessEditorialPlan(plan, { duration = 0, templateMode = "fluxo-
   const dynamic = ["fluxo-padrao", "pulse-tech", "manifesto-kinetic"].includes(templateMode);
   if (!dynamic || Number(duration) < 4) return { ok: true, issues: [], mode: "light" };
   const issues = [];
-  if ((plan?.zooms || []).length < 2) issues.push("faltam mudanças de enquadramento");
-  if ((plan?.graphics || []).length < 2) issues.push("faltam destaques semânticos");
+  // Mínimos escalam com a duração: um Reel de 10s não pode exigir a mesma
+  // densidade de um de 60s (o gerador já limita por espaçamento mínimo).
+  const expectedZooms = Math.min(2, Math.max(1, Math.round(Number(duration) / 14)));
+  const expectedGraphics = Math.min(2, Math.max(1, Math.round(Number(duration) / 22)));
+  if ((plan?.zooms || []).length < expectedZooms) issues.push("faltam mudanças de enquadramento");
+  if ((plan?.graphics || []).length < expectedGraphics) issues.push("faltam destaques semânticos");
   if ((plan?.sfx || []).length < 1) issues.push("falta desenho de som");
   return { ok: issues.length === 0, issues, mode: "dynamic" };
 }
