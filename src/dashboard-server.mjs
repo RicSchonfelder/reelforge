@@ -1483,7 +1483,8 @@ async function handleApi(request, response, url) {
       }
       if (request.method === "POST" && action === "transcribe-local") {
         const body = await readJson(request);
-        json(response, 202, startLocalTranscription(id, { force: body.force === true }));
+        const model = body.model === "precision" ? "precision" : "fast";
+        json(response, 202, startLocalTranscription(id, { force: body.force === true, model }));
         return;
       }
       if (request.method === "POST" && action === "generate-cover") {

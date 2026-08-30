@@ -12,38 +12,53 @@ import {
   transcriptFromWords,
 } from "./transcript-quality.mjs";
 
-const modelId = process.env.REELFORGE_TRANSCRIBER_MODEL
-  || "Xenova/whisper-base";
-const modelDtype = process.env.REELFORGE_TRANSCRIBER_DTYPE
-  || (/large-v3-turbo/i.test(modelId) ? "q4" : "q8");
+// Perfis de transcrição: "fast" (padrão, leve) e "precision" (alto custo,
+// mais preciso — a legenda sai com modelTier "precision" e dispensa revisão
+// manual antes do render). Cada perfil tem pipeline própria em cache.
+const MODEL_PROFILES = {
+  fast: {
+    id: process.env.REELFORGE_TRANSCRIBER_MODEL?.trim() || "Xenova/whisper-base",
+    dtype: process.env.REELFORGE_TRANSCRIBER_DTYPE?.trim() || "q8",
+  },
+  precision: {
+    id: process.env.REELFORGE_PRECISION_MODEL?.trim() || "onnx-community/whisper-large-v3-turbo",
+    dtype: process.env.REELFORGE_PRECISION_DTYPE?.trim() || "q4",
+  },
+};
+
 const modelCacheDir = path.join(appRoot, "models", "transformers");
 const audioTempDir = path.join(appRoot, "editor", "transcription");
 const queued = [];
 const active = new Set();
 const { WaveFile } = wavefile;
-let pipelinePromise = null;
+const pipelinePromises = new Map();
 let queueRunning = false;
+
+function resolveProfile(modelKey) {
+  return MODEL_PROFILES[modelKey] || MODEL_PROFILES.fast;
+}
 
 function ensureDirectories() {
   fs.mkdirSync(modelCacheDir, { recursive: true });
   fs.mkdirSync(audioTempDir, { recursive: true });
 }
 
-async function getTranscriber() {
+async function getTranscriber(profile) {
   ensureDirectories();
-  if (!pipelinePromise) {
-    pipelinePromise = import("@huggingface/transformers").then(async ({
+  if (!pipelinePromises.has(profile.id)) {
+    const promise = import("@huggingface/transformers").then(async ({
       env,
       pipeline,
     }) => {
       env.cacheDir = modelCacheDir;
       env.useBrowserCache = false;
-      return pipeline("automatic-speech-recognition", modelId, {
-        dtype: modelDtype,
+      return pipeline("automatic-speech-recognition", profile.id, {
+        dtype: profile.dtype,
       });
     });
+    pipelinePromises.set(profile.id, promise);
   }
-  return pipelinePromise;
+  return pipelinePromises.get(profile.id);
 }
 
 function extractAudio(filePath, contentId) {
@@ -173,7 +188,8 @@ export function removeLoopingHallucination(value) {
   return text;
 }
 
-async function transcribeContent(contentId) {
+async function transcribeContent(contentId, modelKey = "fast") {
+  const profile = resolveProfile(modelKey);
   const content = getContent(contentId);
   const sourceFile = content?.rawFile || content?.finalFile;
   if (!sourceFile?.path || !fs.existsSync(sourceFile.path)) {
@@ -193,7 +209,7 @@ async function transcribeContent(contentId) {
       transcriptStatus: "loading_model",
       transcriptProgress: 0.2,
     });
-    const transcriber = await getTranscriber();
+    const transcriber = await getTranscriber(profile);
     updateContent(contentId, {
       transcriptStatus: "transcribing",
       transcriptProgress: 0.45,
@@ -219,8 +235,8 @@ async function transcribeContent(contentId) {
       generateCaption({ ...content, transcript }, "direct"),
     );
     const transcriptQuality = {
-      modelId,
-      modelDtype,
+      modelId: profile.id,
+      modelDtype: profile.dtype,
       syncMode: "word-timestamps",
       wordCount: words.length,
       audioDuration: audio.length / 16000,
@@ -230,7 +246,7 @@ async function transcribeContent(contentId) {
       ...assessTranscriptQuality({
         words,
         transcript,
-        modelId,
+        modelId: profile.id,
         audioDuration: audio.length / 16000,
         corrections: correctionResult.corrections,
       }),
@@ -251,7 +267,8 @@ async function transcribeContent(contentId) {
       captionSource: content.caption?.trim() ? content.captionSource : "transcript",
     });
   } catch (error) {
-    pipelinePromise = null;
+    // Descarta só a pipeline deste modelo; o outro continua quente.
+    pipelinePromises.delete(profile.id);
     updateContent(contentId, {
       transcriptStatus: "failed",
       transcriptProgress: 0,
@@ -268,15 +285,16 @@ async function runQueue() {
   queueRunning = true;
   try {
     while (queued.length) {
-      const contentId = queued.shift();
-      await transcribeContent(contentId);
+      const job = queued.shift();
+      await transcribeContent(job.contentId, job.model);
     }
   } finally {
     queueRunning = false;
   }
 }
 
-export function startLocalTranscription(contentId, { force = false } = {}) {
+export function startLocalTranscription(contentId, { force = false, model = "fast" } = {}) {
+  const modelKey = MODEL_PROFILES[model] ? model : "fast";
   const content = getContent(contentId);
   if (!content) throw new Error("Conteúdo não encontrado.");
   if (
@@ -284,7 +302,7 @@ export function startLocalTranscription(contentId, { force = false } = {}) {
     (
       content.transcriptStatus === "ready"
       || active.has(contentId)
-      || queued.includes(contentId)
+      || queued.some((job) => job.contentId === contentId)
     )
   ) {
     return content;
@@ -294,7 +312,7 @@ export function startLocalTranscription(contentId, { force = false } = {}) {
     transcriptProgress: 0.02,
     transcriptError: null,
   });
-  queued.push(contentId);
+  queued.push({ contentId, model: modelKey });
   setTimeout(() => {
     runQueue().catch(() => {});
   }, 0);
@@ -309,13 +327,17 @@ export function startLocalTranscription(contentId, { force = false } = {}) {
  */
 export function recoverInterruptedTranscriptions() {
   const stuckStatuses = new Set(["queued", "preparing", "loading_model", "transcribing"]);
+  const precisionId = MODEL_PROFILES.precision.id;
   const state = loadContentState();
   const toRequeue = [];
   for (const item of state.items) {
     if (!stuckStatuses.has(item.transcriptStatus)) continue;
     const source = item.rawFile?.path || item.finalFile?.path;
     if (source && fs.existsSync(source)) {
-      toRequeue.push(item.id);
+      toRequeue.push({
+        id: item.id,
+        model: item.transcriptQuality?.modelId === precisionId ? "precision" : "fast",
+      });
     } else {
       updateContent(item.id, {
         transcriptStatus: "failed",
@@ -324,9 +346,9 @@ export function recoverInterruptedTranscriptions() {
       });
     }
   }
-  for (const id of toRequeue) {
+  for (const job of toRequeue) {
     try {
-      startLocalTranscription(id, { force: true });
+      startLocalTranscription(job.id, { force: true, model: job.model });
     } catch {
       // item removido concorrentemente: segue
     }
@@ -335,13 +357,28 @@ export function recoverInterruptedTranscriptions() {
 }
 
 export function localTranscriptionOverview() {
+  const defaultProfile = MODEL_PROFILES.fast;
   return {
-    modelId,
-    modelDtype,
-    qualityMode: /large-v3-turbo/i.test(modelId) ? "precision" : "standard",
+    modelId: defaultProfile.id,
+    modelDtype: defaultProfile.dtype,
+    qualityMode: "selectable",
     cost: "local",
+    models: [
+      {
+        key: "fast",
+        label: "Rápido",
+        id: defaultProfile.id,
+        dtype: defaultProfile.dtype,
+      },
+      {
+        key: "precision",
+        label: "Alta precisão (demorado)",
+        id: MODEL_PROFILES.precision.id,
+        dtype: MODEL_PROFILES.precision.dtype,
+      },
+    ],
     activeContentIds: [...active],
-    queuedContentIds: [...queued],
+    queuedContentIds: queued.map((job) => job.contentId),
     busy: queueRunning || active.size > 0 || queued.length > 0,
     cacheDir: modelCacheDir,
   };

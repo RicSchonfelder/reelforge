@@ -1063,6 +1063,11 @@ function renderStudioTranscript() {
   const review = $("#studioTranscriptReview");
   review.hidden = !content?.transcript?.trim();
   review.dataset.contentId = content?.id || "";
+  const precisionButton = $("#studioTranscriptPrecision");
+  precisionButton.hidden = !content?.transcript?.trim()
+    || content?.transcriptQuality?.modelTier === "precision"
+    || ["queued", "preparing", "loading_model", "transcribing"].includes(content?.transcriptStatus);
+  precisionButton.dataset.contentId = content?.id || "";
   const qualityPanel = $("#studioTranscriptQuality");
   qualityPanel.hidden = !quality;
   const knownQualityStatus = ["clean", "reviewed", "needs_review"].includes(quality?.semanticStatus);
@@ -1567,6 +1572,11 @@ function openCaption(id) {
   const localButton = $("#startLocalTranscript");
   const transcribing = ["queued", "preparing", "loading_model", "transcribing"].includes(item.transcriptStatus);
   localButton.disabled = transcribing;
+  const modelSelect = $("#transcribeModel");
+  if (modelSelect) {
+    modelSelect.disabled = transcribing;
+    modelSelect.parentElement.hidden = transcribing;
+  }
   localButton.textContent = transcribing
     ? `◎ Transcrevendo ${Math.round(Number(item.transcriptProgress || 0) * 100)}%`
     : item.transcript?.trim()
@@ -1759,6 +1769,23 @@ document.addEventListener("click", async (event) => {
       player.play().catch(() => {});
     } catch (error) {
       toast(error.message, true);
+    }
+  }
+  if (target.matches("#studioTranscriptPrecision")) {
+    const contentId = target.dataset.contentId;
+    if (!contentId) return;
+    target.disabled = true;
+    try {
+      await api(`/api/content/${contentId}/transcribe-local`, {
+        method: "POST",
+        body: JSON.stringify({ force: true, model: "precision" }),
+      });
+      toast("Re-transcrição em alta precisão iniciada (modelo grande, pode demorar na 1ª vez).");
+      await loadOverview();
+    } catch (error) {
+      toast(error.message, true);
+    } finally {
+      target.disabled = false;
     }
   }
   if (target.matches("#studioTranscriptReview")) {
@@ -2472,14 +2499,19 @@ $("#generateCaption").addEventListener("click", async (event) => {
 $("#startLocalTranscript").addEventListener("click", async (event) => {
   const button = event.currentTarget;
   const contentId = $("#captionContentId").value;
+  const model = $("#transcribeModel")?.value || "fast";
   button.disabled = true;
-  button.textContent = "◎ Preparando transcrição local…";
+  button.textContent = model === "precision"
+    ? "◎ Iniciando alta precisão (1ª vez baixa o modelo)…"
+    : "◎ Preparando transcrição local…";
   try {
     await api(`/api/content/${contentId}/transcribe-local`, {
       method: "POST",
-      body: JSON.stringify({ force: true }),
+      body: JSON.stringify({ force: true, model }),
     });
-    toast("Transcrição local iniciada. Você pode fechar esta janela.");
+    toast(model === "precision"
+      ? "Transcrição em alta precisão iniciada. Pode demorar mais que o modo rápido."
+      : "Transcrição local iniciada. Você pode fechar esta janela.");
     await loadOverview();
     $("#captionDialog").close();
   } catch (error) {

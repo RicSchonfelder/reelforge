@@ -261,6 +261,7 @@
 
                     <section class="studio-tab-pane studio-transcript-pane" data-studio-pane="transcript">
                       <div class="studio-pane-title">
+                        <button class="studio-review-transcript" id="studioTranscriptPrecision" type="button" hidden>◎ Re-transcrever em alta precisão</button>
                         <button class="studio-review-transcript" id="studioTranscriptReview" type="button" hidden>Revisar texto</button>
                         <span><strong id="studioTranscriptTitle">Transcrição do vídeo</strong><small id="studioTranscriptStatus">Selecione uma mídia para acompanhar.</small></span>
                       </div>
@@ -684,7 +685,15 @@
           </label>
           <button class="button ghost" id="generateCaption" type="button">✦ Gerar pela transcrição</button>
         </div>
-        <button class="button ghost local-transcribe-button" id="startLocalTranscript" type="button">◎ Transcrever neste computador</button>
+        <div class="caption-generator">
+          <label>Modelo de transcrição
+            <select id="transcribeModel">
+              <option value="fast">Rápido · Whisper base (segundos)</option>
+              <option value="precision">Alta precisão · Whisper large (demorado, baixa ~1 GB na 1ª vez)</option>
+            </select>
+          </label>
+          <button class="button ghost local-transcribe-button" id="startLocalTranscript" type="button">◎ Transcrever neste computador</button>
+        </div>
         <label>Legenda<textarea id="captionText" rows="10" placeholder="Escreva ou gere uma legenda para este conteúdo."></textarea></label>
         <label>Hashtags<input id="captionHashtags" placeholder="#SaaS #Automacao #Conteudo" /></label>
         <small class="helper-copy">Você pode editar livremente antes de salvar. A publicação automática só aceita legenda sincronizada com a fala ou texto salvo manualmente.</small>

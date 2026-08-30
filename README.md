@@ -54,7 +54,8 @@ Copie `.env.example` para `.env` e preencha `IG_USER_ID` e `IG_ACCESS_TOKEN`. Pr
 | `DAILY_POST_LIMIT` | `4` | Publicações por dia (1–25) |
 | `POSTING_TIME_ZONE` | `America/Sao_Paulo` | Fuso da agenda |
 | `POSTING_SLOTS` | `08:00,12:30,18:30,21:00` | Horários da fila |
-| `REELFORGE_TRANSCRIBER_MODEL` | `Xenova/whisper-base` | Modelo Whisper local (ONNX) |
+| `REELFORGE_TRANSCRIBER_MODEL` | `Xenova/whisper-base` | Modelo Whisper **rápido** (padrão) |
+| `REELFORGE_PRECISION_MODEL` | `whisper-large-v3-turbo` | Modelo de **alta precisão**, selecionável no painel (demorado; ~1 GB na 1ª execução) |
 | `RETENTION_DAYS` | `14` | Remove outputs antigos do editor (0 desativa) |
 | `NOTIFY_WEBHOOK_URL` | *(vazio)* | Webhook opcional para eventos da fila (falha/revisão/publicado) |
 | `NOTIFY_TELEGRAM_TOKEN` / `NOTIFY_TELEGRAM_CHAT_ID` | *(vazio)* | Notificação opcional via Telegram |
