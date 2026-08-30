@@ -1424,6 +1424,8 @@ function renderAll() {
   $("#accountDot").style.background = state.overview.account.connected ? "var(--coffee)" : "var(--danger)";
   const handle = state.overview.account?.username;
   if (handle) $("#accountHandle").textContent = `@${handle}`;
+  const exportButton = $("#exportInsightsCsv");
+  if (exportButton) exportButton.hidden = !state.overview.account?.connected;
   renderEditingPresetOptions();
   renderMetrics();
   renderAutoSchedule();
