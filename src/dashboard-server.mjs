@@ -507,8 +507,41 @@ function serveCreativeBatchZip(response, batchId) {
   archive.finalize();
 }
 
-function cachedProfileUsername() {
-  try {
+function csvCell(value) {
+  const text = String(value ?? "");
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
+function insightsToCsv(payload) {
+  // Separador ";" e BOM: abre corretamente no Excel pt-BR.
+  const header = [
+    "id", "data", "tipo", "legenda", "curtidas", "comentarios",
+    "compartilhamentos", "salvos", "alcance", "visualizacoes",
+    "interacoes", "score",
+  ];
+  const lines = [header.join(";")];
+  for (const media of payload?.media || []) {
+    const insights = media.insights || {};
+    const row = [
+      media.id,
+      media.timestamp,
+      media.media_type,
+      (media.caption || "").replace(/\s+/g, " ").slice(0, 180),
+      media.like_count ?? 0,
+      media.comments_count ?? 0,
+      insights.shares ?? 0,
+      insights.saved ?? 0,
+      insights.reach ?? 0,
+      insights.views ?? 0,
+      insights.total_interactions ?? 0,
+      media.performanceScore ?? "",
+    ];
+    lines.push(row.map(csvCell).join(";"));
+  }
+  return `\uFEFF${lines.join("\r\n")}\r\n`;
+}
+
+function cachedProfileUsername() {  try {
     const cache = JSON.parse(
       fs.readFileSync(path.join(dataRoot, "metrics-cache.json"), "utf8"),
     );
@@ -843,6 +876,22 @@ async function handleApi(request, response, url) {
       json(response, 200, payload);
     } catch (insightError) {
       error(response, 502, insightError.message);
+    }
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/insights/export.csv") {
+    try {
+      const payload = await getInstagramInsights();
+      const csv = insightsToCsv(payload);
+      response.writeHead(200, {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="reelforge-metricas.csv"',
+        "Cache-Control": "no-store",
+      });
+      response.end(csv);
+    } catch (exportError) {
+      error(response, 502, exportError.message);
     }
     return;
   }
