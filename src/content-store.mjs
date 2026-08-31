@@ -123,6 +123,7 @@ export function updateContent(id, patch) {
     "transcriptWords",
     "transcriptQuality",
     "transcriptStatus",
+    "transcriptRequestedModel",
     "transcriptProgress",
     "transcriptError",
     "captionSource",

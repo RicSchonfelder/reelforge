@@ -32,6 +32,10 @@ async function notifyWebhook(evento) {
     }),
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
+  if (!response.ok) {
+    // Falha de entrega silenciosa é invisível para o operador: registra.
+    console.error(`[notify] webhook respondeu HTTP ${response.status}`);
+  }
   return response.ok;
 }
 
@@ -53,6 +57,9 @@ async function notifyTelegram(evento) {
     body: JSON.stringify({ chat_id: chatId, text: texto }),
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
+  if (!response.ok) {
+    console.error(`[notify] telegram respondeu HTTP ${response.status}`);
+  }
   return response.ok;
 }
 
@@ -73,13 +80,15 @@ export async function notifyEvent(event) {
   const channels = [];
   try {
     if (await notifyWebhook(evento)) channels.push("webhook");
-  } catch {
+  } catch (webhookError) {
     // webhook indisponível/timeout: segue para o próximo canal
+    console.error(`[notify] webhook falhou: ${webhookError?.message || webhookError}`);
   }
   try {
     if (await notifyTelegram(evento)) channels.push("telegram");
-  } catch {
+  } catch (telegramError) {
     // Telegram indisponível/timeout: notificação silenciosamente descartada
+    console.error(`[notify] telegram falhou: ${telegramError?.message || telegramError}`);
   }
   return { notified: channels.length > 0, channels };
 }

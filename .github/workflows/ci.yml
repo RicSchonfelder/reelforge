@@ -6,8 +6,11 @@ on:
   pull_request:
 
 jobs:
-  ci:
-    runs-on: ubuntu-latest
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,10 +25,20 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Syntax check (node --check)
+        shell: bash
         run: |
-          find src test -name '*.mjs' -type f -print0 | while IFS= read -r -d '' file; do
+          find src test scripts -name '*.mjs' -type f -print0 | while IFS= read -r -d '' file; do
             node --check "$file"
           done
 
       - name: Tests
         run: npm test
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image (validação do deploy do servidor)
+        run: docker build -t reelforge-ci .

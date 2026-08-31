@@ -3,7 +3,7 @@ import { getConfig } from "./env.mjs";
 import { validateMedia } from "./media.mjs";
 import { InstagramClient, MetaApiError } from "./meta-api.mjs";
 import { notifyEvent } from "./notify.mjs";
-import { updateJob } from "./queue.mjs";
+import { claimJob, updateJob } from "./queue.mjs";
 import { startTemporaryMediaHost } from "./temporary-media-host.mjs";
 
 export async function processJob(
@@ -48,11 +48,11 @@ export async function processJob(
     });
   }
 
-  updateJob(job.id, {
-    status: "uploading",
-    attempts: (job.attempts || 0) + 1,
-    validation,
-  });
+  // Reivindicação atômica (sob lock): se outro processo publicou o job
+  // primeiro, ou ele foi cancelado no meio do caminho, NÃO publica de novo.
+  const claimed = claimJob(job.id);
+  if (!claimed) return updateJob(job.id, {});
+  updateJob(job.id, { validation });
 
   const client =
     suppliedClient ||
@@ -81,18 +81,26 @@ export async function processJob(
     updateJob(job.id, { status: "publishing" });
 
     const published = await client.publishContainer(container.containerId);
-    const media = await client.getPublishedMedia(published.id);
+    // A publicação JÁ aconteceu na Meta: falha aqui (rede ao buscar o
+    // permalink) NUNCA pode re-enfileirar — seria publicar de novo.
+    let permalink = null;
+    try {
+      const media = await client.getPublishedMedia(published.id);
+      permalink = media.permalink ?? null;
+    } catch (permalinkError) {
+      console.error(`[publisher] ${job.id}: publicado, mas o permalink não foi recuperado: ${permalinkError.message}`);
+    }
 
     notifyEvent({
       type: "published",
       jobId: job.id,
       title: path.basename(job.filePath),
-      detail: media.permalink || null,
+      detail: permalink,
     }).catch(() => {});
     return updateJob(job.id, {
       status: "published",
       mediaId: published.id,
-      permalink: media.permalink ?? null,
+      permalink,
       publishedAt: new Date().toISOString(),
       error: null,
     });

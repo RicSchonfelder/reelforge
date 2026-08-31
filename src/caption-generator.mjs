@@ -51,8 +51,11 @@ function inferHashtags(item, transcript = "") {
   const haystack = `${title} ${item.series || ""} ${transcript}`.toLowerCase();
   const hashtags = [];
 
-    for (const [keyword, hashtag] of topicHashtags) {
-    if (haystack.includes(keyword) && !hashtags.includes(hashtag)) hashtags.push(hashtag);
+  for (const [keyword, hashtag] of topicHashtags) {
+    // Borda de palavra: sem isso "ia" casa com "día", "estratégia", "equipe"…
+    const matches = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i")
+      .test(haystack);
+    if (matches && !hashtags.includes(hashtag)) hashtags.push(hashtag);
   }
   for (const fallback of ["#EmpreendedorismoDigital", "#ReelsBrasil", "#Bastidores"]) {
     if (hashtags.length >= 5) break;

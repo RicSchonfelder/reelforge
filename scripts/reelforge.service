@@ -5,8 +5,10 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-# Ajuste o caminho e o usuário conforme sua instalação
-User=%i
+# Unit NÃO-templated: %i expande para vazio e o systemd cai no root.
+# Ajuste o usuário e o caminho da sua instalação abaixo.
+User=reelforge
+Group=reelforge
 WorkingDirectory=/opt/reelforge
 ExecStart=/usr/bin/node src/dashboard-server.mjs
 Restart=on-failure

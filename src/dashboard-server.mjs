@@ -63,6 +63,7 @@ import {
   appendAgentChatMessage,
   createAgentCommand,
   getNextAgentCommand,
+  recoverStuckAgentCommands,
   updateAgentCommand,
 } from "./agent-chat-store.mjs";
 import {
@@ -73,6 +74,7 @@ import {
 import {
   createEditorJob,
   editorMusicDir,
+  editorOutputDir,
   editorTempDir,
   editorOverview,
   getEditorJob,
@@ -140,9 +142,11 @@ function readJson(request) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
+    let destroyed = false;
     request.on("data", (chunk) => {
       size += chunk.length;
       if (size > 2 * 1024 * 1024) {
+        destroyed = true;
         reject(new Error("Dados enviados são grandes demais."));
         request.destroy();
         return;
@@ -150,6 +154,8 @@ function readJson(request) {
       chunks.push(chunk);
     });
     request.on("end", () => {
+      // Socket já destruído: responder daria ERR_STREAM_DESTROYED.
+      if (destroyed) return;
       try {
         const parsed = chunks.length ? JSON.parse(Buffer.concat(chunks).toString("utf8")) : {};
         const proto = Object.getPrototypeOf(parsed);
@@ -162,7 +168,9 @@ function readJson(request) {
         reject(new Error("JSON inválido."));
       }
     });
-    request.on("error", reject);
+    request.on("error", (requestError) => {
+      if (!destroyed) reject(requestError);
+    });
   });
 }
 
@@ -374,7 +382,8 @@ function receiveEditorMusicUpload(request) {
 function serveStatic(response, pathname) {
   const requested = pathname === "/" ? "index.html" : pathname.slice(1);
   const filePath = path.resolve(publicDir, requested);
-  if (!filePath.startsWith(path.resolve(publicDir)) || !fs.existsSync(filePath)) {
+  const publicRoot = path.resolve(publicDir);
+  if ((!filePath.startsWith(`${publicRoot}${path.sep}`) && filePath !== publicRoot) || !fs.existsSync(filePath)) {
     return false;
   }
   const types = {
@@ -395,10 +404,20 @@ function serveStatic(response, pathname) {
   return true;
 }
 
-function serveLocalVideo(request, response, filePath, downloadName = null) {
+function serveLocalVideo(request, response, filePath, downloadName = null, allowedRoot = null) {
   if (!filePath || !fs.existsSync(filePath)) {
     error(response, 404, "Vídeo não encontrado.");
     return;
+  }
+  // Confinamento: o path vem do disco (JSON). Se um PATCH malicioso plantou
+  // um caminho arbitrário, a rota se recusa a servir nada fora da raiz.
+  if (allowedRoot) {
+    const resolvedRoot = `${path.resolve(allowedRoot)}${path.sep}`;
+    if (!`${path.resolve(filePath)}${path.sep}`.startsWith(resolvedRoot)
+      && path.resolve(filePath) !== path.resolve(allowedRoot)) {
+      error(response, 403, "Arquivo fora da biblioteca permitida.");
+      return;
+    }
   }
   const stat = fs.statSync(filePath);
   const range = request.headers.range;
@@ -456,7 +475,7 @@ function serveLocalVideo(request, response, filePath, downloadName = null) {
 function serveMedia(request, response, id, kind) {
   const content = getContent(id);
   const file = kind === "raw" ? content?.rawFile : content?.finalFile;
-  serveLocalVideo(request, response, file?.path);
+  serveLocalVideo(request, response, file?.path, null, libraryDir);
 }
 
 function removeCreativeFile(file) {
@@ -508,7 +527,9 @@ function serveCreativeBatchZip(response, batchId) {
 }
 
 function csvCell(value) {
-  const text = String(value ?? "");
+  let text = String(value ?? "");
+  // CSV injection: célula iniciando com = + - @ vira fórmula no Excel.
+  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
   return `"${text.replaceAll('"', '""')}"`;
 }
 
@@ -869,9 +890,16 @@ async function handleApi(request, response, url) {
   }
 
   if (request.method === "GET" && url.pathname === "/api/insights") {
+    // refresh=1 tem efeito colateral (dezenas de chamadas à Graph + escrita):
+    // exige o header do cliente, senão qualquer página web poderia dispará-lo.
+    const forceRefresh = url.searchParams.get("refresh") === "1";
+    if (forceRefresh && request.headers["x-reelforge-client"] !== "1") {
+      error(response, 403, "Cliente Reelforge não identificado.");
+      return;
+    }
     try {
       const payload = await getInstagramInsights({
-        force: url.searchParams.get("refresh") === "1",
+        force: forceRefresh,
       });
       json(response, 200, payload);
     } catch (insightError) {
@@ -1730,16 +1758,23 @@ const server = http.createServer(async (request, response) => {
   try {
     if (url.pathname.startsWith("/api/")) {
       // Proteção CSRF: navegadores enviam forms cross-origin sem preflight;
-      // exigir um header customizado bloqueia esse caminho. Opcionalmente um
-      // token compartilhado (REELFORGE_TOKEN) protege acessos na rede local.
+      // exigir um header customizado bloqueia esse caminho.
+      // REELFORGE_TOKEN: quando definido, protege TODAS as rotas /api/* —
+      // inclusive GET (dados da conta, insights, chat) — para uso na rede.
+      // Mídia (/media, /editor-media etc.) continua por link direto: os
+      // identificadores são UUIDs inadivinháveis gerados no servidor.
       const expectedToken = process.env.REELFORGE_TOKEN?.trim() || "";
+      const bearerToken = () => {
+        const header = request.headers.authorization || "";
+        return header.startsWith("Bearer ") ? header.slice(7) : "";
+      };
+      if (expectedToken && bearerToken() !== expectedToken) {
+        error(response, 401, "Token de acesso inválido.");
+        return;
+      }
       if (request.method !== "GET") {
         if (request.headers["x-reelforge-client"] !== "1") {
           error(response, 403, "Cliente Reelforge não identificado.");
-          return;
-        }
-        if (expectedToken && request.headers.authorization !== `Bearer ${expectedToken}`) {
-          error(response, 401, "Token de acesso inválido.");
           return;
         }
       }
@@ -1756,7 +1791,7 @@ const server = http.createServer(async (request, response) => {
     );
     if (timelineMediaMatch) {
       const project = getTimelineProject(timelineMediaMatch[1]);
-      serveLocalVideo(request, response, project?.sourceFile?.path);
+      serveLocalVideo(request, response, project?.sourceFile?.path, null, libraryDir);
       return;
     }
     const coverMediaMatch = url.pathname.match(
@@ -1784,7 +1819,7 @@ const server = http.createServer(async (request, response) => {
       const piece = loadCreativeMatrixState().pieces.find(
         (candidate) => candidate.id === creativePieceMediaMatch[1],
       );
-      serveLocalVideo(request, response, piece?.file?.path);
+      serveLocalVideo(request, response, piece?.file?.path, null, creativeMatrixRoot);
       return;
     }
     const creativeOutputMatch = url.pathname.match(
@@ -1798,7 +1833,7 @@ const server = http.createServer(async (request, response) => {
       const downloadName = url.searchParams.get("download") === "1"
         ? combination?.outputFile?.name
         : null;
-      serveLocalVideo(request, response, combination?.outputFile?.path, downloadName);
+      serveLocalVideo(request, response, combination?.outputFile?.path, downloadName, creativeMatrixRoot);
       return;
     }
     const creativeZipMatch = url.pathname.match(/^\/creative-download\/batches\/([^/]+)\.zip$/);
@@ -1812,7 +1847,7 @@ const server = http.createServer(async (request, response) => {
       const downloadName = url.searchParams.get("download") === "1"
         ? job?.outputFile?.name
         : null;
-      serveLocalVideo(request, response, job?.outputFile?.path, downloadName);
+      serveLocalVideo(request, response, job?.outputFile?.path, downloadName, editorOutputDir);
       return;
     }
     if (serveStatic(response, url.pathname)) return;
@@ -1865,6 +1900,19 @@ try {
   );
 } catch (retentionError) {
   console.error(`[retention] varredura inicial falhou: ${retentionError?.message || retentionError}`);
+}
+// Servidor 24/7: sem varredura periódica, os temporários crescem entre restarts.
+const retentionTimer = setInterval(() => {
+  try {
+    runRetentionSweep({ appRoot, days: getConfig().retentionDays });
+  } catch (sweepError) {
+    console.error(`[retention] varredura falhou: ${sweepError?.message || sweepError}`);
+  }
+}, 60 * 60_000);
+retentionTimer.unref?.();
+const recoveredCommands = recoverStuckAgentCommands();
+if (recoveredCommands > 0) {
+  console.log(`[agent] ${recoveredCommands} comando(s) travado(s) em "running" foram marcados como falhos`);
 }
 if (!schedulerDisabled) {
   recoverInterruptedJobs();

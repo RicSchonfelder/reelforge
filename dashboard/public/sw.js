@@ -34,6 +34,7 @@ self.addEventListener("fetch", (event) => {
     requestUrl.pathname.startsWith("/editor-media/") ||
     requestUrl.pathname.startsWith("/timeline-media/") ||
     requestUrl.pathname.startsWith("/creative-media/") ||
+    requestUrl.pathname.startsWith("/cover-media/") ||
     // ZIPs de lotes podem passar de centenas de MB: nunca vão para o cache.
     requestUrl.pathname.startsWith("/creative-download/")
   ) {
@@ -45,7 +46,10 @@ self.addEventListener("fetch", (event) => {
       .then((response) => {
         if (response.ok) {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return caches.open(CACHE_NAME).then((cache) => {
+            // Sem return/await, falha de quota vira unhandled rejection.
+            return cache.put(event.request, clone).catch(() => {});
+          }).then(() => response);
         }
         return response;
       })

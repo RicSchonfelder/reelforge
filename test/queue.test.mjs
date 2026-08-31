@@ -8,7 +8,7 @@ const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "reelforge-test-"));
 process.env.REELFORGE_DATA_DIR = tempRoot;
 
 // Importa depois de definir o data dir (env.mjs resolve o caminho no import).
-const { addJob, updateJob, cancelJob, loadQueue, recoverInterruptedJobs, resetForRetry } = await import(
+const { addJob, updateJob, cancelJob, loadQueue, recoverInterruptedJobs, resetForRetry, claimJob } = await import(
   "../src/queue.mjs"
 );
 
@@ -81,4 +81,21 @@ test("resetForRetry limpa artefatos e ignora campos fora da whitelist", () => {
   assert.equal(reset.error, null);
   assert.equal(reset.apiPayload, null);
   assert.equal(reset.cancelledAt, null);
+});
+
+test("claimJob reivindica queued -> uploading e devolve null na disputa", () => {
+  const job = addJob({ filePath: "x.mp4", caption: "cap", publishAt: "2026-09-06T08:00:00-03:00" });
+  const claimed = claimJob(job.id);
+  assert.equal(claimed.status, "uploading");
+  assert.equal(claimed.attempts, 1);
+  // Segundo processo: job não está mais queued -> null (sem publicação dupla).
+  assert.equal(claimJob(job.id), null);
+});
+
+test("cancelamento nunca é sobrescrito por etapa de publicação", () => {
+  const job = addJob({ filePath: "x.mp4", caption: "cap", publishAt: "2026-09-07T08:00:00-03:00" });
+  cancelJob(job.id);
+  // O publisher ainda não sabia do cancelamento e tenta subir o job:
+  const after = updateJob(job.id, { status: "uploading" });
+  assert.equal(after.status, "cancelled", "cancel vence a corrida");
 });

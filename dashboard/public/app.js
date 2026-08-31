@@ -536,6 +536,7 @@ function renderInsights() {
 }
 
 function renderCalendar() {
+  if (!state.overview) return;
   const today = new Date();
   const view = new Date(today.getFullYear(), today.getMonth() + state.calendarOffset, 1);
   $("#calendarMonth").textContent = formatDate(view, { month: "long", year: "numeric" });
@@ -561,6 +562,7 @@ function renderCalendar() {
 }
 
 function renderReferences() {
+  if (!state.overview) return;
   const statusLabels = {
     saved: ["Referência salva", "neutral"],
     queued: ["Na fila do agente", "queued"],
@@ -603,6 +605,7 @@ function renderReferences() {
 }
 
 function renderExternalEditorProjects(preferredProjectId = "") {
+  if (!state.overview) return;
   const projects = state.overview.externalProjects || [];
   const selector = $("#external-editorProjectSelect");
   const linkSelector = $("#linkExternalEditorProject");
@@ -611,9 +614,18 @@ function renderExternalEditorProjects(preferredProjectId = "") {
   const options = projects.map((project) =>
     `<option value="${escapeHtml(project.projectId)}">${escapeHtml(project.name)}</option>`
   ).join("");
+  // Preserva a seleção atual de cada seletor (o poll de 15s re-renderiza
+  // enquanto o usuário pode estar escolhendo um projeto num dialog).
+  const keepValue = (element) => {
+    const previous = element.value;
+    element.innerHTML = options || '<option value="">Nenhum projeto sincronizado</option>';
+    if ([...element.options].some((option) => option.value === previous)) {
+      element.value = previous;
+    }
+  };
+  keepValue(linkSelector);
+  keepValue(sourceSelector);
   selector.innerHTML = options || '<option value="">Nenhum projeto sincronizado</option>';
-  linkSelector.innerHTML = options || '<option value="">Nenhum projeto sincronizado</option>';
-  sourceSelector.innerHTML = options || '<option value="">Nenhum projeto sincronizado</option>';
   if (projects.some((project) => project.projectId === current)) selector.value = current;
   if (projects.some((project) => project.projectId === current)) sourceSelector.value = current;
   loadExternalEditorProject(selector.value);
@@ -1154,13 +1166,22 @@ function renderTimelineLite() {
 
   $("#timelineProjectTitle").textContent = project.title;
   $("#timelineSaveState").textContent = `Salvo · ${formatDate(project.updatedAt, { hour: "2-digit", minute: "2-digit" })}`;
-  $("#timelineSpeed").value = project.settings.speed;
+  // O poll de 2s re-renderiza: nunca sobrescreva um input que o usuário está
+  // editando (o valor otimista morreria no meio da digitação).
+  const focused = document.activeElement;
+  const setIfIdle = (element, value) => {
+    if (element && element !== focused) element.value = value;
+  };
+  const checkIfIdle = (element, value) => {
+    if (element && element !== focused) element.checked = value;
+  };
+  setIfIdle($("#timelineSpeed"), project.settings.speed);
   $("#timelineSpeedValue").textContent = `${Number(project.settings.speed).toFixed(2).replace(/0$/, "")}×`;
-  $("#timelineHeadline").value = project.settings.headline || "";
-  $("#timelineHeadlineY").value = project.settings.headlineY || 180;
-  $("#timelineHeadlineSize").value = project.settings.headlineFontSize || 56;
-  $("#timelineCaptions").checked = Boolean(project.settings.captions);
-  $("#timelineMusic").checked = Boolean(project.settings.music);
+  setIfIdle($("#timelineHeadline"), project.settings.headline || "");
+  setIfIdle($("#timelineHeadlineY"), project.settings.headlineY || 180);
+  setIfIdle($("#timelineHeadlineSize"), project.settings.headlineFontSize || 56);
+  checkIfIdle($("#timelineCaptions"), Boolean(project.settings.captions));
+  checkIfIdle($("#timelineMusic"), Boolean(project.settings.music));
   const content = state.overview.content.find((item) => item.id === project.contentId);
   $("#timelineCaptions").disabled = !content?.transcript?.trim();
   $("#timelineMusic").disabled = !state.editor.music;
@@ -1305,7 +1326,9 @@ function renderStudioAgent() {
         </article>`;
       }).join("")
     : `<article class="studio-message"><p>Suba os vídeos e me diga como quer o lote. Eu cuido da transcrição, cortes, estilo, música e revisão.</p><small>Agente Reelforge</small></article>`;
-  container.scrollTop = container.scrollHeight;
+  // Mesma regra do chat: só gruda no fundo se o usuário já estava no fundo.
+  const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+  if (nearBottom) container.scrollTop = container.scrollHeight;
 }
 
 function renderEditor() {

@@ -94,7 +94,14 @@ export async function startLocalMediaServer({
       if (request.method === "HEAD") {
         response.end();
       } else {
-        fs.createReadStream(resolvedPath, range).pipe(response);
+        // Stream sem handler de error derruba o processo (arquivo removido
+        // durante o upload, EIO). Destroy a resposta e segue.
+        const stream = fs.createReadStream(resolvedPath, range);
+        stream.on("error", (streamError) => {
+          console.error(`[media-host] ${streamError?.message || streamError}`);
+          response.destroy();
+        });
+        stream.pipe(response);
       }
       return;
     }
@@ -106,7 +113,12 @@ export async function startLocalMediaServer({
     if (request.method === "HEAD") {
       response.end();
     } else {
-      fs.createReadStream(resolvedPath).pipe(response);
+      const stream = fs.createReadStream(resolvedPath);
+      stream.on("error", (streamError) => {
+        console.error(`[media-host] ${streamError?.message || streamError}`);
+        response.destroy();
+      });
+      stream.pipe(response);
     }
   });
 

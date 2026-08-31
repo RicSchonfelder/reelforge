@@ -5,6 +5,9 @@ services:
     build: .
     container_name: reelforge
     restart: unless-stopped
+    # Node como PID 1 não trata SIGTERM de sistema: o init reapassa o sinal
+    # e o docker stop cai no SIGKILL (publicações interrompidas à toa).
+    init: true
     # Rotação: evita que o log do container cresça sem limite no servidor 24/7.
     logging:
       driver: "json-file"

@@ -51,6 +51,8 @@ export class InstagramClient {
         ...(body ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
       },
       body,
+      // Sem timeout, undici segura a conexão por ~5 min antes de desistir.
+      signal: AbortSignal.timeout(15_000),
     });
     return parseResponse(response);
   }
@@ -110,7 +112,17 @@ export class InstagramClient {
       );
     }
 
-    if (!response.ok) stream.destroy();
+    // Lê o body ANTES de destruir o stream: destruir antes faz o
+    // response.text() falhar e esconde o erro real devolvido pela Meta.
+    const text = response.ok ? null : await response.text().catch(() => "");
+    stream.destroy();
+    if (!response.ok) {
+      const payload = (() => {
+        try { return text ? JSON.parse(text) : {}; } catch { return { raw: text }; }
+      })();
+      const apiMessage = payload?.error?.error_user_msg || payload?.error?.message || `HTTP ${response.status}`;
+      throw new MetaApiError(apiMessage, { status: response.status, payload });
+    }
     return parseResponse(response);
   }
 

@@ -195,7 +195,11 @@ async function ensureNormalizedPieceInner(piece) {
   );
 
   try {
-    await runProcess(ffmpegPath, args);
+    // Renderiza em .tmp e renomeia no sucesso: um crash/timeout no meio não
+    // pode deixar um MP4 parcial que o cache reutilizaria para sempre.
+    const tempOutput = `${outputPath}.${process.pid}.tmp`;
+    await runProcess(ffmpegPath, [...args.slice(0, -1), tempOutput]);
+    fs.renameSync(tempOutput, outputPath);
     const stat = fs.statSync(outputPath);
     updateCreativePiece(piece.id, {
       status: "ready",
@@ -209,6 +213,11 @@ async function ensureNormalizedPieceInner(piece) {
     });
     return outputPath;
   } catch (error) {
+    try {
+      fs.rmSync(`${outputPath}.${process.pid}.tmp`, { force: true });
+    } catch {
+      // arquivo parcial: retention o alcança depois
+    }
     updateCreativePiece(piece.id, { status: "failed", error: error.message });
     throw error;
   }

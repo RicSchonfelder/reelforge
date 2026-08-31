@@ -23,7 +23,11 @@ COPY scripts ./scripts
 RUN mkdir -p data library/raw library/final library/covers \
   editor/music editor/outputs editor/proof editor/temp editor/transcription editor/sfx \
   creative-matrix/normalized creative-matrix/outputs creative-matrix/pieces creative-matrix/temp \
-  remix/sources models/transformers
+  remix/sources models/transformers \
+  && chown -R node:node /app
+
+# Nunca como root: os volumes contêm dados e credenciais do operador.
+USER node
 
 EXPOSE 4170
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \

@@ -8,7 +8,7 @@
   --surface-3: #f0e6d8;
   --line: rgba(93, 64, 38, 0.14);
   --text: #2b1d12;
-  --muted: #8a7663;
+  --muted: #74604a;
   --soft: #5c4a3a;
   --coffee: #6f4e37;
   --coffee-2: #a47148;
@@ -448,12 +448,12 @@ input:focus, textarea:focus { border-color: rgba(185,244,67,.45); box-shadow: 0 
 .kind-switch button.active { color: #fff8ef; background: var(--coffee); }
 .caption-generator { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 10px; }
 .caption-generator .button { margin-bottom: 14px; }
-.caption-source-status { margin: -5px 0 18px; padding: 12px 13px; border: 1px solid rgba(255,255,255,.1); border-radius: 11px; background: rgba(255,255,255,.03); }
+.caption-source-status { margin: -5px 0 18px; padding: 12px 13px; border: 1px solid rgba(93,64,38,.16); border-radius: 11px; background: rgba(93,64,38,.05); }
 .caption-source-status strong, .caption-source-status span { display: block; }
 .caption-source-status strong { color: var(--text); font-size: 14px; }
 .caption-source-status span { margin-top: 4px; color: var(--muted); font-size: 13px; line-height: 1.45; }
-.caption-source-status.verified { border-color: rgba(111, 78, 55, .22); background: rgba(111, 78, 55, .35); }
-.caption-source-status.verified strong { color: var(--coffee); }
+.caption-source-status.verified { border-color: rgba(111, 78, 55, .3); background: rgba(111, 78, 55, .08); }
+.caption-source-status.verified strong { color: var(--text); }
 .caption-source-status.blocked { border-color: rgba(255,101,101,.25); background: rgba(255,101,101,.05); }
 .caption-source-status.blocked strong { color: var(--danger); }
 .caption-source-status.manual { border-color: rgba(85,132,255,.2); background: rgba(85,132,255,.055); }

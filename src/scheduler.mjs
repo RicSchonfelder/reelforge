@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { dataRoot, getConfig } from "./env.mjs";
-import { getDueJobs, updateJob } from "./queue.mjs";
+import { getDueJobs, recoverInterruptedJobs, updateJob } from "./queue.mjs";
 import { notifyEvent } from "./notify.mjs";
 import { processJob } from "./publisher.mjs";
 
@@ -112,6 +112,7 @@ process.once("exit", releaseLock);
 console.log(
   `Agendador iniciado. Verificação a cada ${config.schedulerIntervalSeconds}s.`,
 );
+recoverInterruptedJobs();
 await tick();
 setInterval(() => {
   tick().catch((error) => {

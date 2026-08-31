@@ -129,8 +129,10 @@ export function zoomPanExpression(zooms = [], fps = 30) {
     return Number.isFinite(number) ? Math.round(Math.max(0, number)) : Math.round(fallback);
   };
   for (const zoom of [...(Array.isArray(zooms) ? zooms : [])].reverse()) {
-    const start = frame(zoom?.start, 0);
-    const end = Math.max(start + 1, frame(zoom?.end ?? zoom?.start, start / safeFps + 1));
+    // start/end chegam em SEGUNDOS; `on` do zoompan é ÍNDICE DE FRAME.
+    // Sem a conversão, todos os pulsos colapsam nos primeiros frames.
+    const start = frame(zoom?.start * safeFps, 0);
+    const end = Math.max(start + 1, frame((zoom?.end ?? zoom?.start) * safeFps, start + safeFps));
     const magnification = Number(zoom?.magnification) || 1.1;
     const delta = clamp(magnification - 1, 0.02, 0.22).toFixed(4);
     const progress = `(on-${start})/${Math.max(1, end - start)}`;
@@ -143,6 +145,11 @@ export function zoomPanExpression(zooms = [], fps = 30) {
 export function assessEditorialPlan(plan, { duration = 0, templateMode = "fluxo-padrao" } = {}) {
   const dynamic = ["fluxo-padrao", "pulse-tech", "manifesto-kinetic"].includes(templateMode);
   if (!dynamic || Number(duration) < 4) return { ok: true, issues: [], mode: "light" };
+  // Plano vazio (fala curta, <3 cues) é decisão do gerador, não falha —
+  // exigir densidade num plano vazio travava o render final.
+  if (!(plan?.zooms || []).length && !(plan?.graphics || []).length && !(plan?.sfx || []).length) {
+    return { ok: true, issues: [], mode: "light" };
+  }
   const issues = [];
   // Mínimos escalam com a duração: um Reel de 10s não pode exigir a mesma
   // densidade de um de 60s (o gerador já limita por espaçamento mínimo).

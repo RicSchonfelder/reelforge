@@ -55,3 +55,12 @@ test("zoomPanExpression sanitiza entrada hostil", () => {
   assert.ok(!expression.includes("NaN"));
   assert.ok(expression.includes("if(between(on,0,"));
 });
+
+test("zoomPanExpression converte segundos para frames", () => {
+  const expression = zoomPanExpression(
+    [{ start: 5.3, end: 6.5, magnification: 1.12 }],
+    30,
+  );
+  // on é índice de frame: 5.3s @30fps -> 159, 6.5s -> 195.
+  assert.ok(expression.includes("between(on,159,195)"), expression);
+});

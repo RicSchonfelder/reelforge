@@ -35,7 +35,16 @@ function ensureDataDir() {
 function atomicWrite(value) {
   ensureDataDir();
   const tempPath = `${queuePath}.${process.pid}.tmp`;
-  fs.writeFileSync(tempPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  const content = `${JSON.stringify(value, null, 2)}\n`;
+  fs.writeFileSync(tempPath, content, "utf8");
+  // fsync antes do rename: sem isso, queda de energia pode persistir o rename
+  // e perder o conteúdo -> fila vazia silenciosamente.
+  const handle = fs.openSync(tempPath, "r+");
+  try {
+    fs.fsyncSync(handle);
+  } finally {
+    fs.closeSync(handle);
+  }
   fs.renameSync(tempPath, queuePath);
 }
 
@@ -118,6 +127,24 @@ export function getDueJobs(now = new Date()) {
     .sort((a, b) => new Date(a.publishAt) - new Date(b.publishAt));
 }
 
+/**
+ * Reivindica um job para publicação de forma atômica (sob lock): transiciona
+ * queued -> uploading e devolve o job; se outro processo já o reivindicou ou
+ * ele foi cancelado, devolve null. Mata a corrida de publicação dupla entre
+ * o painel e o scheduler standalone — a DECISÃO passa a acontecer sob lock,
+ * não só a escrita.
+ */
+export function claimJob(id) {
+  return mutateQueue((queue) => {
+    const job = queue.jobs.find((candidate) => candidate.id === id);
+    if (!job || job.status !== "queued") return null;
+    job.status = "uploading";
+    job.attempts = (job.attempts || 0) + 1;
+    job.updatedAt = new Date().toISOString();
+    return job;
+  });
+}
+
 export function updateJob(id, patch) {
   const filtered = {};
   for (const [key, value] of Object.entries(patch || {})) {
@@ -126,8 +153,18 @@ export function updateJob(id, patch) {
   return mutateQueue((queue) => {
     const index = queue.jobs.findIndex((job) => job.id === id);
     if (index === -1) throw new Error(`Trabalho não encontrado: ${id}`);
+    const current = queue.jobs[index];
+    // Guarda de transição: um cancelamento nunca é sobrescrito por uma
+    // etapa de publicação que começou antes do cancelamento.
+    if (
+      current.status === "cancelled"
+      && filtered.status
+      && filtered.status !== "cancelled"
+    ) {
+      return current;
+    }
     queue.jobs[index] = {
-      ...queue.jobs[index],
+      ...current,
       ...filtered,
       updatedAt: new Date().toISOString(),
     };

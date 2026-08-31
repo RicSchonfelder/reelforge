@@ -532,7 +532,9 @@ export async function renderEditorJob(jobId) {
     const maxSeconds = job.settings.previewMode
       ? Number(job.settings.previewSeconds || 16)
       : Number(job.settings.maxSeconds || 90);
-    const speed = Math.min(1.4, Math.max(1, Number(job.settings.speed || 1.3)));
+    // Mesmo clamp do timeline-store: slow-mo até 0.5 é legítimo e o
+    // motor precisa respeitar o que a UI mostra.
+    const speed = Math.min(1.4, Math.max(0.5, Number(job.settings.speed || 1.3)));
     const uncappedDuration = cutDuration / speed;
     const effectiveDuration = Math.min(maxSeconds, uncappedDuration);
     const warnings = [];
@@ -563,9 +565,17 @@ export async function renderEditorJob(jobId) {
       );
     }
     if (job.settings.captions) {
-      const semanticStatus = job.settings.transcriptQuality?.semanticStatus;
-      const precisionReady = job.settings.transcriptQuality?.modelTier === "precision"
-        || semanticStatus === "reviewed";
+      const quality = job.settings.transcriptQuality;
+      if (!quality?.semanticStatus) {
+        // Transcrição sem metadados de qualidade (ex.: importada do Editor
+        // Externo): revisar texto não gera os metadados — é honesto apontar
+        // o caminho que destrava de verdade.
+        throw new Error(
+          "A renderização com legendas exige transcrição com timestamps: transcreva localmente (rápido ou alta precisão) neste conteúdo antes de criar legendas.",
+        );
+      }
+      const semanticStatus = quality.semanticStatus;
+      const precisionReady = quality.modelTier === "precision" || semanticStatus === "reviewed";
       if (!["clean", "reviewed"].includes(semanticStatus)) {
         throw new Error(
           "A renderização foi bloqueada: a transcrição contém palavras suspeitas. Revise o texto ou transcreva novamente em alta precisão.",
@@ -635,6 +645,9 @@ export async function renderEditorJob(jobId) {
     });
     const editAudit = {
       ...captionResult.audit,
+      // syncMode real (word vs chunk interpolado) vem do transcritor —
+      // o audit genérico dos cues mente no modo chunk.
+      syncMode: job.settings.transcriptQuality?.syncMode || captionResult.audit.syncMode,
       sourceDuration: source.duration,
       outputDuration: effectiveDuration,
       speed,

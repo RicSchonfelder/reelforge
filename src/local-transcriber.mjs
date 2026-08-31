@@ -203,13 +203,20 @@ async function transcribeContent(contentId, modelKey = "fast") {
     transcriptError: null,
   });
   let wavPath = null;
+  let modelFailed = false;
   try {
     wavPath = extractAudio(sourceFile.path, contentId);
     updateContent(contentId, {
       transcriptStatus: "loading_model",
       transcriptProgress: 0.2,
     });
-    const transcriber = await getTranscriber(profile);
+    let transcriber;
+    try {
+      transcriber = await getTranscriber(profile);
+    } catch (loadError) {
+      modelFailed = true;
+      throw loadError;
+    }
     updateContent(contentId, {
       transcriptStatus: "transcribing",
       transcriptProgress: 0.45,
@@ -231,6 +238,7 @@ async function transcribeContent(contentId, modelKey = "fast") {
       // chunk — o texto mantém a precisão do modelo; os tempos das palavras
       // são interpolados dentro de cada chunk.
       if (!/timestamp|attention/i.test(wordTimestampError.message || "")) {
+        modelFailed = true;
         throw wordTimestampError;
       }
       syncMode = "chunk-timestamps";
@@ -239,7 +247,12 @@ async function transcribeContent(contentId, modelKey = "fast") {
         transcriptProgress: 0.45,
         transcriptError: null,
       });
-      raw = await transcriber(audio, { ...asrOptions, return_timestamps: true });
+      try {
+        raw = await transcriber(audio, { ...asrOptions, return_timestamps: true });
+      } catch (chunkError) {
+        modelFailed = true;
+        throw chunkError;
+      }
     }
     const normalized = normalizeTranscriptResult(raw);
     const correctionResult = applyDomainCorrections(normalized.words);
@@ -269,6 +282,9 @@ async function transcribeContent(contentId, modelKey = "fast") {
         audioDuration: audio.length / 16000,
         corrections: correctionResult.corrections,
       }),
+      // Tier vem do perfil escolhido, não de regex sobre o id: o modelo de
+      // precisão é configurável (REELFORGE_PRECISION_MODEL).
+      modelTier: modelKey === "precision" ? "precision" : "standard",
     };
     updateContent(contentId, {
       transcript,
@@ -286,8 +302,9 @@ async function transcribeContent(contentId, modelKey = "fast") {
       captionSource: content.caption?.trim() ? content.captionSource : "transcript",
     });
   } catch (error) {
-    // Descarta só a pipeline deste modelo; o outro continua quente.
-    pipelinePromises.delete(profile.id);
+    // Só descarta a pipeline deste modelo quando a falha é do MODELO —
+    // erro de conteúdo/áudio não justifica recarregar GBs na próxima vez.
+    if (modelFailed) pipelinePromises.delete(profile.id);
     updateContent(contentId, {
       transcriptStatus: "failed",
       transcriptProgress: 0,
@@ -305,7 +322,13 @@ async function runQueue() {
   try {
     while (queued.length) {
       const job = queued.shift();
-      await transcribeContent(job.contentId, job.model);
+      try {
+        await transcribeContent(job.contentId, job.model);
+      } catch (queueError) {
+        // Falha fora do try interno (item removido concorrentemente etc.)
+        // não pode interromper o dreno da fila.
+        console.error(`[transcription] ${job.contentId}: ${queueError?.message || queueError}`);
+      }
     }
   } finally {
     queueRunning = false;
@@ -330,6 +353,8 @@ export function startLocalTranscription(contentId, { force = false, model = "fas
     transcriptStatus: "queued",
     transcriptProgress: 0.02,
     transcriptError: null,
+    // Persiste a escolha para o recovery reenfileirar com o modelo certo.
+    transcriptRequestedModel: modelKey,
   });
   queued.push({ contentId, model: modelKey });
   setTimeout(() => {
@@ -355,7 +380,9 @@ export function recoverInterruptedTranscriptions() {
     if (source && fs.existsSync(source)) {
       toRequeue.push({
         id: item.id,
-        model: item.transcriptQuality?.modelId === precisionId ? "precision" : "fast",
+        model: item.transcriptRequestedModel === "precision" || item.transcriptQuality?.modelId === precisionId
+          ? "precision"
+          : "fast",
       });
     } else {
       updateContent(item.id, {

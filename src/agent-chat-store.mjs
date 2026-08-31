@@ -256,6 +256,30 @@ export function appendAgentChatMessage(input = {}) {
   return message;
 }
 
+/**
+ * Comando travado em "running" (crash do operador) bloqueia a fila para
+ * sempre — getNextAgentCommand prioriza "running" e não havia recovery.
+ * No boot, comandos em execução há mais de 6 h viram failed.
+ */
+export function recoverStuckAgentCommands() {
+  const state = loadAgentChatState();
+  const cutoff = Date.now() - 6 * 60 * 60_000;
+  let recovered = 0;
+  for (const command of state.commands) {
+    if (command.status !== "running") continue;
+    const startedAt = Date.parse(command.startedAt || command.updatedAt || "");
+    if (Number.isFinite(startedAt) && startedAt < cutoff) {
+      command.status = "failed";
+      command.progress = "O operador foi interrompido e não concluiu esta solicitação.";
+      command.finishedAt = new Date().toISOString();
+      command.updatedAt = command.finishedAt;
+      recovered += 1;
+    }
+  }
+  if (recovered) writeState(state);
+  return recovered;
+}
+
 export function agentChatOverview() {
   const state = loadAgentChatState();
   const activeCommand = getNextAgentCommand();

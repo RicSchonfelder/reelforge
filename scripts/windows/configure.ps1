@@ -58,7 +58,11 @@ $orderedKeys = @(
   "POSTING_SLOTS",
   "CLOUDFLARED_PATH"
 )
-$lines = foreach ($key in $orderedKeys) {
+# Chaves conhecidas primeiro, na ordem; chaves desconhecidas (REELFORGE_TOKEN,
+# NOTIFY_*, RETENTION_DAYS, etc.) sao PRESERVADAS — antes este script apagava
+# qualquer chave fora da lista, inclusive o token de seguranca da rede.
+$unknownKeys = @($settings.Keys | Where-Object { $orderedKeys -notcontains $_ } | Sort-Object)
+$lines = foreach ($key in ($orderedKeys + $unknownKeys)) {
   "$key=$($settings[$key])"
 }
 $lines | Set-Content -LiteralPath $envPath -Encoding UTF8
